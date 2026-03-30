@@ -22,13 +22,13 @@ import * as PanelModule from 'resource:///org/gnome/shell/ui/panel.js';
 // Shell version for feature detection - centralized here and exported for other modules
 
 import * as Common from './common.js';
-export const shellVersion = Common.shellVersion;
-export const patchAddActorMethod = Common.patchAddActorMethod;
-export const copyClass = Common.copyClass;
-
 import * as MMLayout from './mmlayout.js';
 import * as MMPanel from './mmpanel.js';
 import * as ScreenshotPatch from './screenshotPatch.js';
+
+export const shellVersion = Common.shellVersion;
+export const patchAddActorMethod = Common.patchAddActorMethod;
+export const copyClass = Common.copyClass;
 
 export let mmPanel = [];
 export let mmLayoutManager = null;
@@ -77,9 +77,9 @@ export default class MultiMonitorsExtension extends Extension {
 	}
 
 	disable() {
-		// Unpatch screenshot UI
 		ScreenshotPatch.unpatchScreenshotUI();
 
+		// Unpatch screenshot UI
 		if (this._showPanelId) {
 			this._settings.disconnect(this._showPanelId);
 			this._showPanelId = null;

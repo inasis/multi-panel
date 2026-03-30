@@ -2,12 +2,6 @@
   <schema id="org.gnome.shell.extensions.multi-panel"
     path="/org/gnome/shell/extensions/multi-panel/">
 
-    <key name="show-indicator" type="b">
-      <default>true</default>
-      <summary>Show the multi-panel indicator on the main panel</summary>
-      <description>Enable or disable the legacy indicator entry on the primary panel.</description>
-    </key>
-
     <key name="show-panel" type="b">
       <default>true</default>
       <summary>Show the bar on additional monitors</summary>
@@ -30,18 +24,6 @@
       <default>true</default>
       <summary>Show date and time on additional monitors</summary>
       <description>Control whether the clock and date menu are shown on secondary-monitor bars.</description>
-    </key>
-
-    <key name="thumbnails-slider-position" type="s">
-      <choices>
-        <choice value="none"/>
-        <choice value="right"/>
-        <choice value="left"/>
-        <choice value="auto"/>
-      </choices>
-      <default>'auto'</default>
-      <summary>Show thumbnails slider on additional monitors</summary>
-      <description>Preserved compatibility setting for the legacy overview thumbnails feature.</description>
     </key>
 
     <key name="available-indicators" type="as">

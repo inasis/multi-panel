@@ -31,8 +31,6 @@ import * as Calendar from 'resource:///org/gnome/shell/ui/calendar.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
 
-import * as ExtensionUtils from 'resource:///org/gnome/shell/misc/extensionUtils.js';
-import * as MultiMonitors from './extension.js';
 import * as Common from './common.js';
 import { shellVersion } from './common.js';
 

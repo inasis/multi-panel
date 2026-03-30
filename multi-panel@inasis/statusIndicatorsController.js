@@ -370,7 +370,7 @@ export class StatusIndicatorsController {
         if (!actor)
             return;
 
-        const quickSettingsPadding = Constants.getQuickSettingsGap(this._settings) + 1;
+        const quickSettingsPadding = Constants.getQuickSettingsGap(this._settings);
         this._forEachActorChild(actor, child => {
             if (child?.set_style && (child instanceof St.Icon || child instanceof St.Label)) {
                 this._applyPaddingToDisplayActor(child, quickSettingsPadding);
@@ -869,6 +869,15 @@ export class StatusIndicatorsController {
 
     _applyMainPanelIndicatorPadding() {
         this._forEachMainPanelPaddingEntry(({role, target, roots}) => {
+            if (!Constants.hasIndicatorPaddingOverride(this._settings, role)) {
+                this._restoreMainPanelPaddingEntry(role, target, roots);
+
+                if (role === 'quickSettings')
+                    this._applyMainPanelQuickSettingsInternalPadding(target);
+
+                return;
+            }
+
             this._applyMainPanelPaddingPreparation(role, target, roots);
             const padding = Constants.getIndicatorPadding(this._settings, role);
             this._applyMainPanelPaddingStyle(role, target, padding);
@@ -876,28 +885,32 @@ export class StatusIndicatorsController {
         });
     }
 
-    _restoreMainPanelIndicatorPadding() {
-        this._forEachMainPanelPaddingEntry(({role, target, roots}) => {
-            if (this._preserveMainPanelIndicatorPadding(role)) {
-                if (target._mmMainPanelPreservedBaseStyle !== undefined) {
-                    target.set_style(target._mmMainPanelPreservedBaseStyle || null);
-                    delete target._mmMainPanelPreservedBaseStyle;
+    _restoreMainPanelPaddingEntry(role, target, roots) {
+        if (this._preserveMainPanelIndicatorPadding(role)) {
+            if (target._mmMainPanelPreservedBaseStyle !== undefined) {
+                target.set_style(target._mmMainPanelPreservedBaseStyle || null);
+                delete target._mmMainPanelPreservedBaseStyle;
+            }
+            return;
+        }
+
+        roots.forEach(root => {
+            if (root === target) {
+                if (root._mmMainPanelZeroBaseStyle !== undefined) {
+                    root.set_style(root._mmMainPanelZeroBaseStyle || null);
+                    delete root._mmMainPanelZeroBaseStyle;
                 }
+                this._restoreZeroSpacingFromChildren(root);
                 return;
             }
 
-            roots.forEach(root => {
-                if (root === target) {
-                    if (root._mmMainPanelZeroBaseStyle !== undefined) {
-                        root.set_style(root._mmMainPanelZeroBaseStyle || null);
-                        delete root._mmMainPanelZeroBaseStyle;
-                    }
-                    this._restoreZeroSpacingFromChildren(root);
-                    return;
-                }
+            this._restoreZeroSpacingRecursively(root);
+        });
+    }
 
-                this._restoreZeroSpacingRecursively(root);
-            });
+    _restoreMainPanelIndicatorPadding() {
+        this._forEachMainPanelPaddingEntry(({role, target, roots}) => {
+            this._restoreMainPanelPaddingEntry(role, target, roots);
         });
     }
 

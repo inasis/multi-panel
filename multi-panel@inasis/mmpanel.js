@@ -31,7 +31,6 @@ import * as CtrlAltTab from 'resource:///org/gnome/shell/ui/ctrlAltTab.js';
 import * as Layout from 'resource:///org/gnome/shell/ui/layout.js';
 import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
 
-import * as MultiMonitors from './extension.js';
 import * as MMCalendar from './mmcalendar.js';
 import * as Constants from './mmPanelConstants.js';
 import { StatusIndicatorsController } from './statusIndicatorsController.js';
@@ -1347,10 +1346,18 @@ const MultiMonitorsPanel = GObject.registerClass(
         }
 
         _applyIndicatorPadding(role, container = null) {
+            const hasOverride = Constants.hasIndicatorPaddingOverride(this._settings, role);
             const padding = this._getAuxiliaryIndicatorPadding(role);
 
             if (role === 'quickSettings')
-                this.statusArea[role]?._applyQuickSettingsIndicatorPadding?.(padding);
+                this.statusArea[role]?._applyQuickSettingsIndicatorPadding?.(
+                    Number.isFinite(padding) ? padding : Constants.getQuickSettingsGap(this._settings));
+
+            if (!hasOverride) {
+                this._getIndicatorPaddingTargets(role, container)
+                    .forEach(({actor, key}) => this._restoreAuxiliaryPaddingStyle(actor, key));
+                return;
+            }
 
             this._getIndicatorPaddingTargets(role, container)
                 .forEach(({actor, key}) => this._applyAuxiliaryPaddingStyle(actor, padding, key));
@@ -1358,7 +1365,8 @@ const MultiMonitorsPanel = GObject.registerClass(
 
         _restoreIndicatorPadding(role, container = null) {
             if (role === 'quickSettings')
-                this.statusArea[role]?._applyQuickSettingsIndicatorPadding?.(0);
+                this.statusArea[role]?._applyQuickSettingsIndicatorPadding?.(
+                    Constants.getDefaultIndicatorPadding(this._settings, role) ?? 0);
 
             this._getIndicatorPaddingTargets(role, container)
                 .forEach(({actor, key}) => this._restoreAuxiliaryPaddingStyle(actor, key));

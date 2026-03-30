@@ -22,6 +22,7 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Adw from 'gi://Adw';
 import { ExtensionPreferences, gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
+import * as Constants from './mmPanelConstants.js';
 
 const SHOW_PANEL_ID = 'show-panel';
 const AVAILABLE_INDICATORS_ID = 'available-indicators';
@@ -1007,7 +1008,9 @@ class IndicatorPaddingPrefsWidget extends Adw.PreferencesGroup {
 
     _getIndicatorPadding(role) {
         const paddingMap = this._getIndicatorPaddingMap();
-        return Number.isInteger(paddingMap[role]) ? paddingMap[role] : 0;
+        return Number.isInteger(paddingMap[role])
+            ? paddingMap[role]
+            : Constants.getDefaultIndicatorPadding(this._settings, role);
     }
 
     _setIndicatorPadding(role, padding) {

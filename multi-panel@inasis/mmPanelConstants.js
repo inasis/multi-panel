@@ -225,9 +225,23 @@ export function getIndicatorPaddingMap(settings) {
     }
 }
 
+export function getDefaultIndicatorPadding(settings, role) {
+    if (role === 'quickSettings')
+        return getQuickSettingsGap(settings);
+
+    return null;
+}
+
+export function hasIndicatorPaddingOverride(settings, role) {
+    const paddingMap = getIndicatorPaddingMap(settings);
+    return Number.isInteger(paddingMap[role]);
+}
+
 export function getIndicatorPadding(settings, role) {
     const paddingMap = getIndicatorPaddingMap(settings);
-    return Number.isInteger(paddingMap[role]) ? paddingMap[role] : 1;
+    return Number.isInteger(paddingMap[role])
+        ? paddingMap[role]
+        : getDefaultIndicatorPadding(settings, role);
 }
 
 export function setIndicatorPadding(settings, role, padding) {
