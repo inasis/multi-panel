@@ -1,0 +1,11 @@
+{
+    "shell-version": ["3.38"],
+    "uuid": "multi-panel@inasis",
+    "name": "multi-panel",
+    "author": "inasis",
+    "settings-schema": "org.gnome.shell.extensions.multi-panel",
+    "gettext-domain": "multi-panel",
+    "description": "Add multiple monitors overview and panel for gnome-shell.",
+    "url": "https://github.com/inasis/multi-panel",
+    "version": 23
+}

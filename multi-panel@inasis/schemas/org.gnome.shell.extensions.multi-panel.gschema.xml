@@ -1,5 +1,5 @@
 <schemalist gettext-domain="gnome-shell-extensions">
-  <schema id="org.gnome.shell.extensions.multi-monitors-add-on" path="/org/gnome/shell/extensions/multi-monitors-add-on/">
+  <schema id="org.gnome.shell.extensions.multi-panel" path="/org/gnome/shell/extensions/multi-panel/">
 
 	<key name="show-indicator" type="b">
       <default>true</default>

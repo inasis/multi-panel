@@ -21,7 +21,7 @@ const Util = imports.misc.util;
 const Main = imports.ui.main;
 const PanelMenu = imports.ui.panelMenu;
 
-const Gettext = imports.gettext.domain('multi-monitors-add-on');
+const Gettext = imports.gettext.domain('multi-panel');
 const _ = Gettext.gettext;
 const CE = imports.misc.extensionUtils.getCurrentExtension();
 const MultiMonitors = CE.imports.extension;
@@ -92,7 +92,7 @@ var MultiMonitorsIndicator = (() => {
 		}
 
 		_onPreferences() {
-			const uuid = "multi-monitors-add-on@spin83";
+			const uuid = "multi-panel@inasis";
 			Gio.DBus.session.call(
 				'org.gnome.Shell.Extensions',
 				'/org/gnome/Shell/Extensions',

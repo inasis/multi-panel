@@ -23,7 +23,7 @@ const Gtk = imports.gi.Gtk;
 const Gio = imports.gi.Gio;
 const GLib = imports.gi.GLib;
 
-const Gettext = imports.gettext.domain('multi-monitors-add-on');
+const Gettext = imports.gettext.domain('multi-panel');
 const _ = Gettext.gettext;
 
 const ExtensionUtils = imports.misc.extensionUtils;
