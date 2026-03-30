@@ -1,59 +1,114 @@
 <schemalist gettext-domain="gnome-shell-extensions">
-  <schema id="org.gnome.shell.extensions.multi-panel" path="/org/gnome/shell/extensions/multi-panel/">
+  <schema id="org.gnome.shell.extensions.multi-panel"
+    path="/org/gnome/shell/extensions/multi-panel/">
 
-	<key name="show-indicator" type="b">
+    <key name="show-indicator" type="b">
       <default>true</default>
-      <summary>Show Multi Monitors indicator on Top Panel.</summary>
-      <description>Add or remove Multi Monitors indicator from Top Panel.</description>
+      <summary>Show the multi-panel indicator on the main panel</summary>
+      <description>Enable or disable the legacy indicator entry on the primary panel.</description>
     </key>
 
     <key name="show-panel" type="b">
       <default>true</default>
-      <summary>Show Panel on additional monitors.</summary>
-      <description>Add or remove Panel from additional monitors.</description>
+      <summary>Show the bar on additional monitors</summary>
+      <description>Enable or disable the multi-panel bar on non-primary monitors.</description>
     </key>
 
     <key name="show-activities" type="b">
       <default>true</default>
-      <summary>Show Activities-Button on additional monitors.</summary>
-      <description>Change visibility of Activities-Button on additional monitors.</description>
+      <summary>Show Activities on additional monitors</summary>
+      <description>Control whether the Activities button is shown on secondary-monitor bars.</description>
     </key>
-    
+
     <key name="show-app-menu" type="b">
       <default>true</default>
-      <summary>Show AppMenu-Button on additional monitors.</summary>
-      <description>Change visibility of AppMenu-Button on additional monitors.</description>
+      <summary>Show the app menu on additional monitors</summary>
+      <description>Control whether the focused application's menu is shown on secondary-monitor bars.</description>
     </key>
-    
+
     <key name="show-date-time" type="b">
       <default>true</default>
-      <summary>Show DateTime-Button on additional monitors.</summary>
-      <description>Change visibility of DateTime-Button on additional monitors.</description>
+      <summary>Show date and time on additional monitors</summary>
+      <description>Control whether the clock and date menu are shown on secondary-monitor bars.</description>
     </key>
 
     <key name="thumbnails-slider-position" type="s">
       <choices>
-        <choice value='none'/>
-        <choice value='right'/>
-        <choice value='left'/>
-        <choice value='auto'/>
+        <choice value="none"/>
+        <choice value="right"/>
+        <choice value="left"/>
+        <choice value="auto"/>
       </choices>
       <default>'auto'</default>
-      <summary>Show Thumbnails-Slider on additional monitors.</summary>
-      <description>Select position of Thumbnails-Slider on additional monitors.</description>
+      <summary>Show thumbnails slider on additional monitors</summary>
+      <description>Preserved compatibility setting for the legacy overview thumbnails feature.</description>
     </key>
-    
-	<key name="available-indicators" type="as">
+
+    <key name="available-indicators" type="as">
       <default>[]</default>
-      <summary>A list of available indicators.</summary>
-      <description>A list of indicators that are available for transfer. For internal use only.</description>
+      <summary>Available indicators</summary>
+      <description>Internal cache of indicators that can be mirrored or transferred. This key is maintained automatically.</description>
     </key>
-    
-	<key name="transfer-indicators" type="a{si}">
+
+    <key name="transfer-indicators" type="a{si}">
       <default>{}</default>
-      <summary>A list of indicators for transfer.</summary>
-      <description>A list of indicators selected for transfer to additional Panel.</description>
+      <summary>Transferred indicators</summary>
+      <description>Mapping of indicator role names to target monitor indexes for indicators moved off the primary bar.</description>
     </key>
-    
+
+    <key name="indicator-order" type="as">
+      <default>['activities', 'appMenu', 'dateMenu', 'quickSettings']</default>
+      <summary>Indicator order</summary>
+      <description>Visual order for stable indicators shown on the multi-panel bar.</description>
+    </key>
+
+    <key name="indicator-positions" type="a{ss}">
+      <default>{'activities': 'left', 'appMenu': 'left', 'dateMenu': 'center', 'quickSettings': 'right'}</default>
+      <summary>Indicator positions</summary>
+      <description>Mapping of stable indicators to their target group on the multi-panel bar: left, center, or right.</description>
+    </key>
+
+    <key name="hidden-indicators" type="as">
+      <default>[]</default>
+      <summary>Hidden indicators</summary>
+      <description>Stable indicators that should be hidden on the multi-panel bar.</description>
+    </key>
+
+    <key name="indicator-padding" type="a{si}">
+      <default>{}</default>
+      <summary>Indicator padding</summary>
+      <description>Mapping of stable indicators to extra horizontal padding in pixels on the multi-panel bar.</description>
+    </key>
+
+    <key name="indicator-gap" type="i">
+      <default>0</default>
+      <summary>Indicator gap</summary>
+      <description>Gap in pixels between indicators on the multi-panel bar.</description>
+    </key>
+
+    <key name="quick-settings-gap" type="i">
+      <default>0</default>
+      <summary>Quick Settings gap</summary>
+      <description>Gap in pixels between copied Quick Settings items on the multi-panel bar.</description>
+    </key>
+
+    <key name="apply-indicator-layout-to-main-panel" type="b">
+      <default>false</default>
+      <summary>Apply indicator layout to main panel</summary>
+      <description>Apply indicator internal padding and gap settings to the main panel as well.</description>
+    </key>
+
+    <key name="exclude-indicators" type="as">
+      <default>['fildem-indicator']</default>
+      <summary>Excluded indicators</summary>
+      <description>Indicators in this list are ignored by transfer and mirroring logic.</description>
+    </key>
+
+    <key name="screenshot-on-all-monitors" type="b">
+      <default>false</default>
+      <summary>Show screenshot tools on all monitors</summary>
+      <description>Show the screenshot controls on every monitor instead of only the monitor under the pointer.</description>
+    </key>
+
   </schema>
 </schemalist>

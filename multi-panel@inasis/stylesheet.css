@@ -1,19 +1,18 @@
-
 .helloworld-label {
     font-size: 72px;
     font-weight: bold;
     color: #ffffff;
-    background-color: rgba(0,0,0,0.5);
+    background-color: rgba(0, 0, 0, 0.5);
     border-radius: 5px;
     padding: .5em;
 }
 
 .multimonitor-spacer {
-	height: 4em;
+    height: 4em;
 }
 
 .multimonitor-status-indicators-box {
-    spacing: 0px;
+    gap: 0;
 }
 
 .multimonitor-status-icon {
@@ -21,9 +20,96 @@
 }
 
 .workspace-thumbnails-left {
-  border-radius: 0 9px 9px 0; 
+    border-radius: 0 9px 9px 0;
 }
 
 .workspace-thumbnails-left:rtl {
-    border-radius: 9px 0 0 9px; 
+    border-radius: 9px 0 0 9px;
+}
+
+/* Mirrored indicators should inherit styling from their cloned source.
+   The Clutter.Clone automatically scales content, ensuring proper font sizes. */
+
+/* Padding for mirrored indicators (e.g., Vitals extension) */
+.mm-mirrored-indicator .panel-status-menu-box {
+    padding: 0;
+    margin: 0;
+    min-height: 24px;
+}
+
+.mm-mirrored-indicator {
+    padding: 0;
+    margin: 0;
+    spacing: 0;
+    -natural-hpadding: 0;
+    -minimum-hpadding: 0;
+    min-height: 0;
+}
+
+.mm-mirrored-indicator *,
+.mm-quick-settings *,
+.mm-favorites-menu *,
+.mm-mirrored-indicator.clock-display,
+.mm-mirrored-indicator.clock-display .clock-display-box {
+    spacing: 0;
+    padding: 0;
+    margin: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    min-height: 0;
+}
+
+.mm-mirrored-indicator.clock-display .clock {
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    min-height: 0;
+}
+
+/* Quick Settings (system tray) in extended monitor - consistent padding */
+.mm-quick-settings {
+    padding: 0;
+    -natural-hpadding: 0;
+    -minimum-hpadding: 0;
+}
+
+.mm-quick-settings-box {
+    padding: 0;
+    margin: 0;
+}
+
+/* Clipping container for system tray - SAME padding as normal mode */
+.mm-quick-settings-clip {
+    padding: 0;
+    margin: 0;
+}
+
+/* Normal and overview states should have SAME padding for consistency */
+.mm-quick-settings-normal,
+.mm-quick-settings-overview {
+    padding: 0;
+}
+
+/* Favorites menu in extended monitor - full height */
+.mm-favorites-menu {
+    padding: 0;
+    -natural-hpadding: 0;
+    -minimum-hpadding: 0;
+}
+
+#panelRight {
+    padding-right: 0;
+}
+
+.mm-favorites-menu-box {
+    padding: 0;
+    margin: 0;
+}
+/* Apply extra sizing only to mirrored indicators, not transferred real actors */
+.multimonitor-status-indicators-box .mm-mirrored-indicator,
+.multimonitor-status-indicators-box .mm-mirrored-indicator .system-status-icon {
+    min-height: 30px;
+    padding: 0;
+    margin: 0;
 }
