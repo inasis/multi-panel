@@ -59,25 +59,43 @@
     <key name="indicator-padding" type="a{si}">
       <default>{}</default>
       <summary>Indicator padding</summary>
-      <description>Mapping of stable indicators to extra horizontal padding in pixels on the multi-panel bar.</description>
+      <description>Mapping of stable indicators to extra horizontal padding in pixels on auxiliary panels.</description>
     </key>
 
     <key name="indicator-gap" type="i">
       <default>0</default>
       <summary>Indicator gap</summary>
-      <description>Gap in pixels between indicators on the multi-panel bar.</description>
+      <description>Gap in pixels between indicators on auxiliary panels.</description>
     </key>
 
     <key name="quick-settings-gap" type="i">
       <default>0</default>
       <summary>Quick Settings gap</summary>
-      <description>Gap in pixels between copied Quick Settings items on the multi-panel bar.</description>
+      <description>Gap in pixels between copied Quick Settings items on auxiliary panels.</description>
+    </key>
+
+    <key name="panel-left-padding" type="i">
+      <default>0</default>
+      <summary>Panel left padding</summary>
+      <description>Extra left padding for auxiliary panels. Also applied to the main panel when layout syncing is enabled.</description>
+    </key>
+
+    <key name="panel-right-padding" type="i">
+      <default>0</default>
+      <summary>Panel right padding</summary>
+      <description>Extra right padding for auxiliary panels. Also applied to the main panel when layout syncing is enabled.</description>
+    </key>
+
+    <key name="panel-height" type="i">
+      <default>0</default>
+      <summary>Panel height</summary>
+      <description>Custom panel height for auxiliary panels. Also applied to the main panel when layout syncing is enabled. Set to 0 to keep the GNOME default.</description>
     </key>
 
     <key name="apply-indicator-layout-to-main-panel" type="b">
       <default>false</default>
-      <summary>Apply indicator layout to main panel</summary>
-      <description>Apply indicator internal padding and gap settings to the main panel as well.</description>
+      <summary>Apply layout to main panel</summary>
+      <description>Apply indicator padding, indicator gap, panel padding, and panel height settings to the primary GNOME top bar as well.</description>
     </key>
 
     <key name="exclude-indicators" type="as">

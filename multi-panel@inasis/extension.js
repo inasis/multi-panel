@@ -22,9 +22,9 @@ import * as PanelModule from 'resource:///org/gnome/shell/ui/panel.js';
 // Shell version for feature detection - centralized here and exported for other modules
 
 import * as Common from './common.js';
-import * as MMLayout from './mmlayout.js';
-import * as MMPanel from './mmpanel.js';
-import * as ScreenshotPatch from './screenshotPatch.js';
+import * as AuxiliaryPanelManager from './auxiliaryPanelManager.js';
+import * as AuxiliaryPanel from './auxiliaryPanel.js';
+import * as ScreenshotHandler from './screenshotHandler.js';
 
 export const shellVersion = Common.shellVersion;
 export const patchAddActorMethod = Common.patchAddActorMethod;
@@ -59,25 +59,25 @@ export default class MultiMonitorsExtension extends Extension {
 	}
 
 	enable() {
-		this._settings = this.getSettings();
+        this._settings = this.getSettings();
 
-		mmLayoutManager = new MMLayout.MultiMonitorsLayoutManager(this._settings);
+        mmLayoutManager = new AuxiliaryPanelManager.MultiMonitorsLayoutManager(this._settings);
 
-		this._showPanelId = this._settings.connect('changed::' + MMLayout.SHOW_PANEL_ID, mmLayoutManager.showPanel.bind(mmLayoutManager));
-		mmLayoutManager.showPanel();
+        this._showPanelId = this._settings.connect('changed::' + AuxiliaryPanelManager.SHOW_PANEL_ID, mmLayoutManager.showPanel.bind(mmLayoutManager));
+        mmLayoutManager.showPanel();
 
-		mmPanel.length = 0;
-		MMLayout.setMMPanelArrayRef(mmPanel);
-		MMPanel.setMMPanelArrayRef(mmPanel);
+        mmPanel.length = 0;
+        AuxiliaryPanelManager.setMMPanelArrayRef(mmPanel);
+        AuxiliaryPanel.setMMPanelArrayRef(mmPanel);
 
 		patchMainPanelEnsureIndicator();
 
 		// Patch screenshot UI to open on cursor's monitor (or all monitors based on setting)
-		ScreenshotPatch.patchScreenshotUI(this._settings);
+        ScreenshotHandler.patchScreenshotUI(this._settings);
 	}
 
 	disable() {
-		ScreenshotPatch.unpatchScreenshotUI();
+        ScreenshotHandler.unpatchScreenshotUI();
 
 		// Unpatch screenshot UI
 		if (this._showPanelId) {

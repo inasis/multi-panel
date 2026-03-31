@@ -32,6 +32,9 @@ export const INDICATOR_PADDING_ID = 'indicator-padding';
 export const INDICATOR_GAP_ID = 'indicator-gap';
 export const QUICK_SETTINGS_GAP_ID = 'quick-settings-gap';
 export const APPLY_INDICATOR_LAYOUT_TO_MAIN_PANEL_ID = 'apply-indicator-layout-to-main-panel';
+export const PANEL_LEFT_PADDING_ID = 'panel-left-padding';
+export const PANEL_RIGHT_PADDING_ID = 'panel-right-padding';
+export const PANEL_HEIGHT_ID = 'panel-height';
 export const EXCLUDE_INDICATORS_ID = 'exclude-indicators';
 export const SCREENSHOT_ON_ALL_MONITORS_ID = 'screenshot-on-all-monitors';
 
@@ -274,12 +277,102 @@ export function getQuickSettingsGap(settings) {
     }
 }
 
+export function getPanelLeftPadding(settings) {
+    try {
+        const value = settings.get_int(PANEL_LEFT_PADDING_ID);
+        return Number.isInteger(value) ? Math.max(0, value) : 0;
+    } catch (_e) {
+        return 0;
+    }
+}
+
+export function getPanelRightPadding(settings) {
+    try {
+        const value = settings.get_int(PANEL_RIGHT_PADDING_ID);
+        return Number.isInteger(value) ? Math.max(0, value) : 0;
+    } catch (_e) {
+        return 0;
+    }
+}
+
+export function getPanelHeight(settings) {
+    try {
+        const value = settings.get_int(PANEL_HEIGHT_ID);
+        return Number.isInteger(value) ? Math.max(0, value) : 0;
+    } catch (_e) {
+        return 0;
+    }
+}
+
 export function shouldApplyIndicatorLayoutToMainPanel(settings) {
     try {
         return settings.get_boolean(APPLY_INDICATOR_LAYOUT_TO_MAIN_PANEL_ID);
     } catch (_e) {
         return false;
     }
+}
+
+export function composeSpacingStyle(baseStyle, gap) {
+    const gapStyle = `spacing: ${gap}px;`;
+    return `${baseStyle || ''}${baseStyle && gapStyle ? ' ' : ''}${gapStyle}`.trim() || null;
+}
+
+export function sanitizeInlineStyle(style) {
+    if (!style || typeof style !== 'string')
+        return null;
+
+    const lengthLikeProperty = /^(?:padding|margin|spacing|width|height|min-width|min-height|max-width|max-height|icon-size|border(?:-(?:top|right|bottom|left))?-width|-natural-hpadding|-minimum-hpadding)$/i;
+    const validLengthValue = /^(?:-?\d+(?:\.\d+)?(?:px|pt|em|rem|%)?|0|auto|inherit|initial|unset|calc\(.+\)|var\(.+\))$/i;
+
+    const sanitized = style
+        .split(';')
+        .map(part => part.trim())
+        .filter(Boolean)
+        .filter(part => part.includes(':'))
+        .map(part => {
+            const [property, ...valueParts] = part.split(':');
+            const name = property.trim();
+            const value = valueParts.join(':').trim();
+            return {name, value};
+        })
+        .filter(({name, value}) => name && value)
+        .filter(({value}) => !/(?:^|[\s:(-])(NaN|undefined|null)(?:$|[\s);-])/i.test(value))
+        .filter(({name, value}) => !lengthLikeProperty.test(name) || validLengthValue.test(value))
+        .map(({name, value}) => `${name}: ${value}`)
+        .join('; ');
+
+    return sanitized || null;
+}
+
+export function applyManagedStyle(actor, key, buildStyle) {
+    if (!actor?.set_style)
+        return;
+
+    const originalStyle = actor[key] ?? actor.get_style?.() ?? null;
+    if (actor[key] === undefined)
+        actor[key] = originalStyle;
+
+    const nextStyle = buildStyle(actor[key] || '');
+    actor.set_style(nextStyle || null);
+}
+
+export function restoreManagedStyle(actor, key) {
+    if (!actor?.set_style || actor[key] === undefined)
+        return;
+
+    actor.set_style(actor[key] || null);
+    delete actor[key];
+}
+
+export function applyHorizontalPaddingStyle(actor, key, leftPadding, rightPadding) {
+    applyManagedStyle(actor, key, baseStyle => {
+        const paddingStyle = `padding-left: ${leftPadding}px; padding-right: ${rightPadding}px;`;
+        return `${baseStyle}${baseStyle && paddingStyle ? ' ' : ''}${paddingStyle}`.trim();
+    });
+}
+
+export function applyGapStyle(actor, key, gap) {
+    applyManagedStyle(actor, key, baseStyle => composeSpacingStyle(baseStyle, gap));
 }
 
 export function isIndicatorHidden(settings, role) {

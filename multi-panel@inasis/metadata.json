@@ -1,7 +1,7 @@
 {
     "shell-version": ["45", "46", "47", "48", "49"],
     "uuid": "multi-panel@inasis",
-    "name": "multi-panel",
+    "name": "Multi Panel",
     "author": "inasis",
     "settings-schema": "org.gnome.shell.extensions.multi-panel",
     "gettext-domain": "multi-panel",

@@ -32,24 +32,26 @@ import * as Layout from 'resource:///org/gnome/shell/ui/layout.js';
 import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import * as MMCalendar from './mmcalendar.js';
-import * as Constants from './mmPanelConstants.js';
-import { StatusIndicatorsController } from './statusIndicatorsController.js';
-import { MirroredIndicatorButton } from './mirroredIndicatorButton.js';
+import * as PanelSettings from './panelSettings.js';
+import { MirroredIndicatorButton } from './mirroredIndicator.js';
 
 MMCalendar.setMainRef(Main);
 
 // Re-export for backward compatibility
-export const setMMPanelArrayRef = Constants.setMMPanelArrayRef;
-export const SHOW_ACTIVITIES_ID = Constants.SHOW_ACTIVITIES_ID;
-export const SHOW_APP_MENU_ID = Constants.SHOW_APP_MENU_ID;
-export const SHOW_DATE_TIME_ID = Constants.SHOW_DATE_TIME_ID;
-export const AVAILABLE_INDICATORS_ID = Constants.AVAILABLE_INDICATORS_ID;
-export const TRANSFER_INDICATORS_ID = Constants.TRANSFER_INDICATORS_ID;
-export const INDICATOR_ORDER_ID = Constants.INDICATOR_ORDER_ID;
-export const INDICATOR_PADDING_ID = Constants.INDICATOR_PADDING_ID;
-export const INDICATOR_GAP_ID = Constants.INDICATOR_GAP_ID;
-export const QUICK_SETTINGS_GAP_ID = Constants.QUICK_SETTINGS_GAP_ID;
-export const EXCLUDE_INDICATORS_ID = Constants.EXCLUDE_INDICATORS_ID;
+export const setMMPanelArrayRef = PanelSettings.setMMPanelArrayRef;
+export const SHOW_ACTIVITIES_ID = PanelSettings.SHOW_ACTIVITIES_ID;
+export const SHOW_APP_MENU_ID = PanelSettings.SHOW_APP_MENU_ID;
+export const SHOW_DATE_TIME_ID = PanelSettings.SHOW_DATE_TIME_ID;
+export const AVAILABLE_INDICATORS_ID = PanelSettings.AVAILABLE_INDICATORS_ID;
+export const TRANSFER_INDICATORS_ID = PanelSettings.TRANSFER_INDICATORS_ID;
+export const INDICATOR_ORDER_ID = PanelSettings.INDICATOR_ORDER_ID;
+export const INDICATOR_PADDING_ID = PanelSettings.INDICATOR_PADDING_ID;
+export const INDICATOR_GAP_ID = PanelSettings.INDICATOR_GAP_ID;
+export const QUICK_SETTINGS_GAP_ID = PanelSettings.QUICK_SETTINGS_GAP_ID;
+export const PANEL_LEFT_PADDING_ID = PanelSettings.PANEL_LEFT_PADDING_ID;
+export const PANEL_RIGHT_PADDING_ID = PanelSettings.PANEL_RIGHT_PADDING_ID;
+export const PANEL_HEIGHT_ID = PanelSettings.PANEL_HEIGHT_ID;
+export const EXCLUDE_INDICATORS_ID = PanelSettings.EXCLUDE_INDICATORS_ID;
 
 
 const MultiMonitorsAppMenuButton = GObject.registerClass(
@@ -264,7 +266,7 @@ function syncWidgetAppearance(target, source) {
         if (target.get_style_class_name?.() !== styleClass)
             target.set_style_class_name(styleClass);
 
-        const style = sanitizeInlineStyle(source.get_style?.() ?? null);
+        const style = PanelSettings.sanitizeInlineStyle(source.get_style?.() ?? null);
         if (target.get_style?.() !== style)
             target.set_style(style);
     } catch (_e) {
@@ -326,38 +328,6 @@ function removeActorFromParent(actor) {
             parent.remove_child(actor);
     } catch (_e) {
     }
-}
-
-function composeSpacingStyle(baseStyle, gap) {
-    const gapStyle = `spacing: ${gap}px;`;
-    return `${baseStyle || ''}${baseStyle && gapStyle ? ' ' : ''}${gapStyle}`.trim() || null;
-}
-
-function sanitizeInlineStyle(style) {
-    if (!style || typeof style !== 'string')
-        return null;
-
-    const lengthLikeProperty = /^(?:padding|margin|spacing|width|height|min-width|min-height|max-width|max-height|icon-size|border(?:-(?:top|right|bottom|left))?-width|-natural-hpadding|-minimum-hpadding)$/i;
-    const validLengthValue = /^(?:-?\d+(?:\.\d+)?(?:px|pt|em|rem|%)?|0|auto|inherit|initial|unset|calc\(.+\)|var\(.+\))$/i;
-
-    const sanitized = style
-        .split(';')
-        .map(part => part.trim())
-        .filter(Boolean)
-        .filter(part => part.includes(':'))
-        .map(part => {
-            const [property, ...valueParts] = part.split(':');
-            const name = property.trim();
-            const value = valueParts.join(':').trim();
-            return {name, value};
-        })
-        .filter(({name, value}) => name && value)
-        .filter(({value}) => !/(?:^|[\s:(-])(NaN|undefined|null)(?:$|[\s);-])/i.test(value))
-        .filter(({name, value}) => !lengthLikeProperty.test(name) || validLengthValue.test(value))
-        .map(({name, value}) => `${name}: ${value}`)
-        .join('; ');
-
-    return sanitized || null;
 }
 
 const MultiMonitorsPanel = GObject.registerClass(
@@ -470,6 +440,18 @@ const MultiMonitorsPanel = GObject.registerClass(
             );
             this._quickSettingsGapId = this._settings.connect(
                 'changed::' + QUICK_SETTINGS_GAP_ID,
+                this._updatePanel.bind(this)
+            );
+            this._panelLeftPaddingId = this._settings.connect(
+                'changed::' + PANEL_LEFT_PADDING_ID,
+                this._updatePanel.bind(this)
+            );
+            this._panelRightPaddingId = this._settings.connect(
+                'changed::' + PANEL_RIGHT_PADDING_ID,
+                this._updatePanel.bind(this)
+            );
+            this._panelHeightId = this._settings.connect(
+                'changed::' + PANEL_HEIGHT_ID,
                 this._updatePanel.bind(this)
             );
 
@@ -656,6 +638,7 @@ const MultiMonitorsPanel = GObject.registerClass(
 
             try {
                 this._panelBoxWrapper?.syncFromMainPanel?.();
+                this._applyPanelLayout();
                 this._applyIndicatorGap();
                 this._ensureBlurMyShellCompatibility();
                 this._syncBlurMyShellActor();
@@ -727,6 +710,18 @@ const MultiMonitorsPanel = GObject.registerClass(
             if (this._quickSettingsGapId) {
                 this._settings.disconnect(this._quickSettingsGapId);
                 this._quickSettingsGapId = null;
+            }
+            if (this._panelLeftPaddingId) {
+                this._settings.disconnect(this._panelLeftPaddingId);
+                this._panelLeftPaddingId = null;
+            }
+            if (this._panelRightPaddingId) {
+                this._settings.disconnect(this._panelRightPaddingId);
+                this._panelRightPaddingId = null;
+            }
+            if (this._panelHeightId) {
+                this._settings.disconnect(this._panelHeightId);
+                this._panelHeightId = null;
             }
 
             for (const actor of [this._leftBox, this._centerBox, this._centerBin, this._rightBox]) {
@@ -1011,15 +1006,15 @@ const MultiMonitorsPanel = GObject.registerClass(
             ];
 
             const groupedIndicators = {
-                [Constants.PANEL_BOX_LEFT]: [],
-                [Constants.PANEL_BOX_CENTER]: [],
-                [Constants.PANEL_BOX_RIGHT]: [],
+                [PanelSettings.PANEL_BOX_LEFT]: [],
+                [PanelSettings.PANEL_BOX_CENTER]: [],
+                [PanelSettings.PANEL_BOX_RIGHT]: [],
             };
-            const preferredPositions = Constants.getIndicatorPositions(this._settings);
-            const transferredIndicators = Constants.getTransferredIndicators(this._settings);
+            const preferredPositions = PanelSettings.getIndicatorPositions(this._settings);
+            const transferredIndicators = PanelSettings.getTransferredIndicators(this._settings);
 
             const isTransferredRole = role =>
-                Constants.isPersistentRole(role) &&
+                PanelSettings.isPersistentRole(role) &&
                 Object.prototype.hasOwnProperty.call(transferredIndicators, role);
 
             const findRoleForChild = child => {
@@ -1028,7 +1023,7 @@ const MultiMonitorsPanel = GObject.registerClass(
                     if (!indicator)
                         continue;
 
-                    if (!Constants.isPersistentRole(role))
+                    if (!PanelSettings.isPersistentRole(role))
                         continue;
 
                     if (excludedIndicators.includes(role))
@@ -1042,15 +1037,15 @@ const MultiMonitorsPanel = GObject.registerClass(
                 }
                 return null;
             };
-            const pushRole = (role, fallbackPosition = Constants.PANEL_BOX_LEFT) => {
+            const pushRole = (role, fallbackPosition = PanelSettings.PANEL_BOX_LEFT) => {
                 const targetPosition = preferredPositions[role] ?? fallbackPosition;
                 groupedIndicators[targetPosition]?.push(role);
             };
 
             [
-                [mainPanel._leftBox, Constants.PANEL_BOX_LEFT],
-                [mainPanel._centerBox, Constants.PANEL_BOX_CENTER],
-                [mainPanel._rightBox, Constants.PANEL_BOX_RIGHT],
+                [mainPanel._leftBox, PanelSettings.PANEL_BOX_LEFT],
+                [mainPanel._centerBox, PanelSettings.PANEL_BOX_CENTER],
+                [mainPanel._rightBox, PanelSettings.PANEL_BOX_RIGHT],
             ].forEach(([box, fallbackPosition]) => {
                 getActorChildren(box)
                     .filter(child => child.visible)
@@ -1060,16 +1055,16 @@ const MultiMonitorsPanel = GObject.registerClass(
             });
 
             const knownRoles = new Set([
-                ...groupedIndicators[Constants.PANEL_BOX_LEFT],
-                ...groupedIndicators[Constants.PANEL_BOX_CENTER],
-                ...groupedIndicators[Constants.PANEL_BOX_RIGHT],
+                ...groupedIndicators[PanelSettings.PANEL_BOX_LEFT],
+                ...groupedIndicators[PanelSettings.PANEL_BOX_CENTER],
+                ...groupedIndicators[PanelSettings.PANEL_BOX_RIGHT],
             ]);
 
             for (const [role, indicator] of Object.entries(mainPanel.statusArea)) {
                 if (!indicator || knownRoles.has(role))
                     continue;
 
-                if (!Constants.isPersistentRole(role))
+                if (!PanelSettings.isPersistentRole(role))
                     continue;
 
                 if (excludedIndicators.includes(role))
@@ -1082,20 +1077,20 @@ const MultiMonitorsPanel = GObject.registerClass(
                 if (!container?.visible)
                     continue;
 
-                pushRole(role, Constants.getIndicatorPosition(this._settings, role));
+                pushRole(role, PanelSettings.getIndicatorPosition(this._settings, role));
             }
 
-            const orderedLeftIndicators = Constants.sortIndicatorsByOrder(
+            const orderedLeftIndicators = PanelSettings.sortIndicatorsByOrder(
                 this._settings,
-                groupedIndicators[Constants.PANEL_BOX_LEFT]
+                groupedIndicators[PanelSettings.PANEL_BOX_LEFT]
             );
-            const orderedCenterIndicators = Constants.sortIndicatorsByOrder(
+            const orderedCenterIndicators = PanelSettings.sortIndicatorsByOrder(
                 this._settings,
-                groupedIndicators[Constants.PANEL_BOX_CENTER]
+                groupedIndicators[PanelSettings.PANEL_BOX_CENTER]
             );
-            const orderedRightIndicators = Constants.sortIndicatorsByOrder(
+            const orderedRightIndicators = PanelSettings.sortIndicatorsByOrder(
                 this._settings,
-                groupedIndicators[Constants.PANEL_BOX_RIGHT]
+                groupedIndicators[PanelSettings.PANEL_BOX_RIGHT]
             );
 
             this._updateBox(orderedLeftIndicators, this._leftBox);
@@ -1108,8 +1103,8 @@ const MultiMonitorsPanel = GObject.registerClass(
                 return;
 
             const nChildren = box.get_n_children();
-            const hiddenIndicators = new Set(Constants.getHiddenIndicators(this._settings));
-            const transferredIndicators = Constants.getTransferredIndicators(this._settings);
+            const hiddenIndicators = new Set(PanelSettings.getHiddenIndicators(this._settings));
+            const transferredIndicators = PanelSettings.getTransferredIndicators(this._settings);
 
             for (const [index, role] of elements.entries()) {
                 if (role === 'activities' && this.monitorIndex === Main.layoutManager.primaryIndex)
@@ -1188,12 +1183,12 @@ const MultiMonitorsPanel = GObject.registerClass(
         }
 
         _getPanelBoxForRole(role) {
-            switch (Constants.getIndicatorPosition(this._settings, role)) {
-            case Constants.PANEL_BOX_CENTER:
+            switch (PanelSettings.getIndicatorPosition(this._settings, role)) {
+            case PanelSettings.PANEL_BOX_CENTER:
                 return this._centerBox;
-            case Constants.PANEL_BOX_RIGHT:
+            case PanelSettings.PANEL_BOX_RIGHT:
                 return this._rightBox;
-            case Constants.PANEL_BOX_LEFT:
+            case PanelSettings.PANEL_BOX_LEFT:
             default:
                 return this._leftBox;
             }
@@ -1212,7 +1207,7 @@ const MultiMonitorsPanel = GObject.registerClass(
                 .filter(child => child && !isDisposedActor(child))
                 .map(child => ({child, role: this._getRoleForBoxChild(child)}));
 
-            const orderedRoles = Constants.sortIndicatorsByOrder(
+            const orderedRoles = PanelSettings.sortIndicatorsByOrder(
                 this._settings,
                 entries.map(entry => entry.role).filter(Boolean)
             );
@@ -1296,7 +1291,7 @@ const MultiMonitorsPanel = GObject.registerClass(
         }
 
         _getAuxiliaryIndicatorPadding(role) {
-            return Constants.getIndicatorPadding(this._settings, role);
+            return PanelSettings.getIndicatorPadding(this._settings, role);
         }
 
         _getIndicatorPaddingTargets(role, container = null) {
@@ -1346,12 +1341,12 @@ const MultiMonitorsPanel = GObject.registerClass(
         }
 
         _applyIndicatorPadding(role, container = null) {
-            const hasOverride = Constants.hasIndicatorPaddingOverride(this._settings, role);
+            const hasOverride = PanelSettings.hasIndicatorPaddingOverride(this._settings, role);
             const padding = this._getAuxiliaryIndicatorPadding(role);
 
             if (role === 'quickSettings')
                 this.statusArea[role]?._applyQuickSettingsIndicatorPadding?.(
-                    Number.isFinite(padding) ? padding : Constants.getQuickSettingsGap(this._settings));
+                    Number.isFinite(padding) ? padding : PanelSettings.getQuickSettingsGap(this._settings));
 
             if (!hasOverride) {
                 this._getIndicatorPaddingTargets(role, container)
@@ -1366,7 +1361,7 @@ const MultiMonitorsPanel = GObject.registerClass(
         _restoreIndicatorPadding(role, container = null) {
             if (role === 'quickSettings')
                 this.statusArea[role]?._applyQuickSettingsIndicatorPadding?.(
-                    Constants.getDefaultIndicatorPadding(this._settings, role) ?? 0);
+                    PanelSettings.getDefaultIndicatorPadding(this._settings, role) ?? 0);
 
             this._getIndicatorPaddingTargets(role, container)
                 .forEach(({actor, key}) => this._restoreAuxiliaryPaddingStyle(actor, key));
@@ -1393,7 +1388,7 @@ const MultiMonitorsPanel = GObject.registerClass(
             if (!isUsablePanel(this))
                 return;
 
-            const gap = Constants.getIndicatorGap(this._settings);
+            const gap = PanelSettings.getIndicatorGap(this._settings);
 
             for (const target of this._getIndicatorGapTargets()) {
                 if (!target || !target.set_style || isDisposedActor(target))
@@ -1404,7 +1399,7 @@ const MultiMonitorsPanel = GObject.registerClass(
                     if (target._mmOriginalGapStyle === undefined)
                         target._mmOriginalGapStyle = originalStyle;
 
-                    target.set_style(composeSpacingStyle(target._mmOriginalGapStyle || '', gap));
+                    PanelSettings.applyGapStyle(target, '_mmOriginalGapStyle', gap);
                 } catch (_e) {
                 }
             }
@@ -1423,6 +1418,19 @@ const MultiMonitorsPanel = GObject.registerClass(
                     delete target._mmOriginalGapStyle;
                 } catch (_e) {
                 }
+            }
+        }
+
+        _applyPanelLayout() {
+            if (!isUsablePanel(this))
+                return;
+
+            const leftPadding = PanelSettings.getPanelLeftPadding(this._settings);
+            const rightPadding = PanelSettings.getPanelRightPadding(this._settings);
+
+            try {
+                PanelSettings.applyHorizontalPaddingStyle(this, '_mmPanelLayoutBaseStyle', leftPadding, rightPadding);
+            } catch (_e) {
             }
         }
 
@@ -1479,6 +1487,1005 @@ const MultiMonitorsPanel = GObject.registerClass(
             }
         }
     });
+
+class StatusIndicatorsController {
+    constructor(settings) {
+        this._transfered_indicators = [];
+        this._settings = settings;
+        this._mainPanelRefreshTimeoutIds = [];
+
+        this._updatedSessionId = Main.sessionMode.connect('updated', this._updateSessionIndicators.bind(this));
+        this._extensionStateChangedId = Main.extensionManager.connect(
+            'extension-state-changed',
+            this._extensionStateChanged.bind(this)
+        );
+
+        this._transferIndicatorsId = this._settings.connect(
+            `changed::${PanelSettings.TRANSFER_INDICATORS_ID}`,
+            this.transferIndicators.bind(this)
+        );
+
+        this._excludeIndicatorsId = this._settings.connect(
+            `changed::${PanelSettings.EXCLUDE_INDICATORS_ID}`,
+            this._onExcludeIndicatorsChanged.bind(this)
+        );
+
+        this._indicatorOrderId = this._settings.connect(
+            `changed::${PanelSettings.INDICATOR_ORDER_ID}`,
+            this._onIndicatorOrderChanged.bind(this)
+        );
+
+        this._indicatorPositionsId = this._settings.connect(
+            `changed::${PanelSettings.INDICATOR_POSITIONS_ID}`,
+            this._onIndicatorPositionsChanged.bind(this)
+        );
+
+        this._indicatorPaddingId = this._settings.connect(
+            `changed::${PanelSettings.INDICATOR_PADDING_ID}`,
+            this._onIndicatorPaddingChanged.bind(this)
+        );
+
+        this._indicatorGapId = this._settings.connect(
+            `changed::${PanelSettings.INDICATOR_GAP_ID}`,
+            this._onMainPanelLayoutChanged.bind(this)
+        );
+
+        this._quickSettingsGapId = this._settings.connect(
+            `changed::${PanelSettings.QUICK_SETTINGS_GAP_ID}`,
+            this._onMainPanelLayoutChanged.bind(this)
+        );
+
+        this._applyToMainPanelId = this._settings.connect(
+            `changed::${PanelSettings.APPLY_INDICATOR_LAYOUT_TO_MAIN_PANEL_ID}`,
+            this._onMainPanelLayoutChanged.bind(this)
+        );
+        this._panelLeftPaddingId = this._settings.connect(
+            `changed::${PanelSettings.PANEL_LEFT_PADDING_ID}`,
+            this._onMainPanelLayoutChanged.bind(this)
+        );
+        this._panelRightPaddingId = this._settings.connect(
+            `changed::${PanelSettings.PANEL_RIGHT_PADDING_ID}`,
+            this._onMainPanelLayoutChanged.bind(this)
+        );
+        this._panelHeightId = this._settings.connect(
+            `changed::${PanelSettings.PANEL_HEIGHT_ID}`,
+            this._onMainPanelLayoutChanged.bind(this)
+        );
+
+        this._updateSessionIndicators();
+    }
+
+    destroy() {
+        this._settings.disconnect(this._transferIndicatorsId);
+        this._settings.disconnect(this._excludeIndicatorsId);
+        this._settings.disconnect(this._indicatorOrderId);
+        this._settings.disconnect(this._indicatorPositionsId);
+        this._settings.disconnect(this._indicatorPaddingId);
+        this._settings.disconnect(this._indicatorGapId);
+        this._settings.disconnect(this._quickSettingsGapId);
+        this._settings.disconnect(this._applyToMainPanelId);
+        this._settings.disconnect(this._panelLeftPaddingId);
+        this._settings.disconnect(this._panelRightPaddingId);
+        this._settings.disconnect(this._panelHeightId);
+        Main.extensionManager.disconnect(this._extensionStateChangedId);
+        Main.sessionMode.disconnect(this._updatedSessionId);
+
+        for (const timeoutId of this._mainPanelRefreshTimeoutIds)
+            GLib.source_remove(timeoutId);
+        this._mainPanelRefreshTimeoutIds = [];
+
+        this._restoreMainPanelIndicatorPositions();
+        this._restoreMainPanelIndicatorPadding();
+        this._restoreMainPanelIndicatorGap();
+        this._restoreMainPanelPanelLayout();
+        this._settings.set_strv(PanelSettings.AVAILABLE_INDICATORS_ID, []);
+        this._transferBack(this._transfered_indicators);
+    }
+
+    _getPanels() {
+        return PanelSettings.getMMPanelArray() ?? [];
+    }
+
+    _forEachPanel(callback) {
+        this._getPanels().forEach(panel => callback(panel));
+    }
+
+    _getPersistentStatusRoles() {
+        return Object.keys(Main.panel.statusArea || {})
+            .filter(role => PanelSettings.isPersistentRole(role));
+    }
+
+    _forEachPersistentStatusIndicator(callback) {
+        this._getPersistentStatusRoles().forEach(role => {
+            callback(role, Main.panel.statusArea[role]);
+        });
+    }
+
+    _syncMainPanelIndicators() {
+        this._findAvailableIndicators();
+        PanelSettings.normalizeIndicatorOrder(this._settings);
+        this.transferIndicators();
+        this._applyMainPanelIndicatorPositions();
+        this._reorderMainPanelIndicators();
+        this._onMainPanelLayoutChanged();
+    }
+
+    _onExcludeIndicatorsChanged() {
+        this._syncMainPanelIndicators();
+    }
+
+    _onIndicatorOrderChanged() {
+        this._reorderMainPanelIndicators();
+        this._forEachPanel(panel => panel?._reorderBoxesByIndicatorOrder?.());
+    }
+
+    _onIndicatorPositionsChanged() {
+        this._applyMainPanelIndicatorPositions();
+        this._reorderMainPanelIndicators();
+        this._forEachPanel(panel => panel?._updatePanel?.());
+    }
+
+    _onIndicatorPaddingChanged() {
+        for (const transferred of this._transfered_indicators) {
+            const indicator = Main.panel.statusArea[transferred.iname];
+            const container = this._getIndicatorContainer(indicator);
+            const panel = this._findPanel(transferred.monitor);
+
+            if (!container || !panel)
+                continue;
+
+            panel?._applyIndicatorPadding?.(transferred.iname, container);
+        }
+
+        this._onMainPanelLayoutChanged();
+    }
+
+    _onMainPanelLayoutChanged() {
+        if (PanelSettings.shouldApplyIndicatorLayoutToMainPanel(this._settings)) {
+            this._applyMainPanelIndicatorPadding();
+            this._applyMainPanelIndicatorGap();
+            this._applyMainPanelPanelLayout();
+            return;
+        }
+
+        this._restoreMainPanelIndicatorPadding();
+        this._restoreMainPanelIndicatorGap();
+        this._restoreMainPanelPanelLayout();
+    }
+
+    _applyMainPanelPanelLayout() {
+        const leftPadding = PanelSettings.getPanelLeftPadding(this._settings);
+        const rightPadding = PanelSettings.getPanelRightPadding(this._settings);
+        const height = PanelSettings.getPanelHeight(this._settings);
+
+        PanelSettings.applyHorizontalPaddingStyle(
+            Main.panel,
+            '_mmPanelLayoutBaseStyle',
+            leftPadding,
+            rightPadding
+        );
+        PanelSettings.applyManagedStyle(
+            Main.layoutManager.panelBox,
+            '_mmPanelHeightBaseStyle',
+            baseStyle => {
+                const heightStyle = height > 0 ? `height: ${height}px;` : '';
+                return `${baseStyle}${baseStyle && heightStyle ? ' ' : ''}${heightStyle}`.trim();
+            }
+        );
+        Main.layoutManager.panelBox.set_height(height > 0 ? height : -1);
+        Main.layoutManager.panelBox.queue_relayout?.();
+        Main.panel.queue_relayout?.();
+    }
+
+    _restoreMainPanelPanelLayout() {
+        PanelSettings.restoreManagedStyle(Main.panel, '_mmPanelLayoutBaseStyle');
+        PanelSettings.restoreManagedStyle(Main.layoutManager.panelBox, '_mmPanelHeightBaseStyle');
+        Main.layoutManager.panelBox.set_height(-1);
+        Main.layoutManager.panelBox.queue_relayout?.();
+        Main.panel.queue_relayout?.();
+    }
+
+    _getMainPanelPositionBoxes() {
+        return [Main.panel._leftBox, Main.panel._centerBox, Main.panel._rightBox].filter(Boolean);
+    }
+
+    _moveMainPanelIndicators(getTargetBox) {
+        this._forEachPersistentStatusIndicator((role, indicator) => {
+            if (this._transfered_indicators.some(entry => entry.iname === role))
+                return;
+
+            const container = this._getIndicatorContainer(indicator);
+            if (!container)
+                return;
+
+            const currentParent = container.get_parent?.() ?? null;
+            if (!this._getMainPanelPositionBoxes().includes(currentParent))
+                return;
+
+            const targetBox = getTargetBox(role);
+            if (!targetBox || currentParent === targetBox)
+                return;
+
+            currentParent.remove_child(container);
+            targetBox.add_child(container);
+        });
+    }
+
+    _applyMainPanelIndicatorPositions() {
+        this._moveMainPanelIndicators(role => this._getMainPanelTargetBox(role));
+        this._reorderMainPanelIndicators();
+    }
+
+    _restoreMainPanelIndicatorPositions() {
+        this._moveMainPanelIndicators(role => this._getMainPanelTargetBox(role, true));
+    }
+
+    _getMainPanelTargetBox(role, useDefaultPosition = false) {
+        const position = useDefaultPosition
+            ? PanelSettings.getDefaultIndicatorPosition(role)
+            : PanelSettings.getIndicatorPosition(this._settings, role);
+
+        switch (position) {
+        case PanelSettings.PANEL_BOX_CENTER:
+            return Main.panel._centerBox;
+        case PanelSettings.PANEL_BOX_RIGHT:
+            return Main.panel._rightBox;
+        case PanelSettings.PANEL_BOX_LEFT:
+        default:
+            return Main.panel._leftBox;
+        }
+    }
+
+    _getMainPanelRoleForChild(child) {
+        if (!child)
+            return null;
+
+        for (const [role, indicator] of Object.entries(Main.panel.statusArea || {})) {
+            if (!indicator || !PanelSettings.isPersistentRole(role))
+                continue;
+
+            const container = this._getIndicatorContainer(indicator);
+            if (container === child)
+                return role;
+        }
+
+        return child._mmIndicatorRole ?? null;
+    }
+
+    _reorderMainPanelBox(box) {
+        if (!box)
+            return;
+
+        const children = box.get_children?.() ?? [];
+        const entries = children.map(child => ({
+            child,
+            role: this._getMainPanelRoleForChild(child),
+        }));
+
+        const orderedRoles = PanelSettings.sortIndicatorsByOrder(
+            this._settings,
+            entries.map(entry => entry.role).filter(Boolean)
+        );
+        const rankMap = new Map();
+        orderedRoles.forEach((role, index) => rankMap.set(role, index));
+
+        entries.sort((a, b) => {
+            const aRank = a.role && rankMap.has(a.role) ? rankMap.get(a.role) : Number.MAX_SAFE_INTEGER;
+            const bRank = b.role && rankMap.has(b.role) ? rankMap.get(b.role) : Number.MAX_SAFE_INTEGER;
+            return aRank - bRank;
+        });
+
+        this._pinMainPanelRightmostIndicator(box, entries);
+
+        for (const {child} of entries) {
+            box.remove_child(child);
+            box.add_child(child);
+        }
+    }
+
+    _pinMainPanelRightmostIndicator(box, entries) {
+        if (box !== Main.panel._rightBox || entries.length === 0)
+            return;
+
+        const orderedPersistentEntries = entries.filter(entry =>
+            entry.role && PanelSettings.isPersistentRole(entry.role));
+        if (orderedPersistentEntries.length === 0)
+            return;
+
+        const terminalEntry = orderedPersistentEntries[orderedPersistentEntries.length - 1];
+        const terminalIndex = entries.indexOf(terminalEntry);
+        if (terminalIndex < 0 || terminalIndex === entries.length - 1)
+            return;
+
+        entries.splice(terminalIndex, 1);
+        entries.push(terminalEntry);
+    }
+
+    _reorderMainPanelIndicators() {
+        [Main.panel._leftBox, Main.panel._centerBox, Main.panel._rightBox]
+            .forEach(box => this._reorderMainPanelBox(box));
+    }
+
+    _applyZeroSpacingStyle(actor, extraStyle = '') {
+        if (!actor?.set_style)
+            return;
+
+        const base = 'padding: 0; margin: 0; spacing: 0; -natural-hpadding: 0; -minimum-hpadding: 0;';
+        actor.set_style(`${base}${extraStyle ? ` ${extraStyle}` : ''}`.trim());
+    }
+
+    _composeZeroSpacingStyle(baseStyle = '', extraStyle = '') {
+        const zeroStyle = 'padding: 0; margin: 0; spacing: 0; -natural-hpadding: 0; -minimum-hpadding: 0;';
+        return `${zeroStyle}${baseStyle ? ` ${baseStyle}` : ''}${extraStyle ? ` ${extraStyle}` : ''}`.trim();
+    }
+
+    _forEachActorChild(actor, callback) {
+        const children = actor?.get_children?.() ?? [];
+        children.forEach(child => callback(child));
+    }
+
+    _walkActorTree(actor, callback) {
+        if (!actor)
+            return;
+
+        callback(actor);
+        this._forEachActorChild(actor, child => this._walkActorTree(child, callback));
+    }
+
+    _rememberZeroSpacingStyle(actor) {
+        if (!actor?.set_style)
+            return false;
+
+        const originalStyle = actor._mmMainPanelZeroBaseStyle ?? actor.get_style?.() ?? null;
+        if (actor._mmMainPanelZeroBaseStyle === undefined)
+            actor._mmMainPanelZeroBaseStyle = originalStyle;
+        return true;
+    }
+
+    _applyZeroSpacingRecursively(actor) {
+        this._walkActorTree(actor, currentActor => {
+            if (!this._rememberZeroSpacingStyle(currentActor))
+                return;
+
+            this._applyZeroSpacingStyle(currentActor, currentActor._mmMainPanelZeroBaseStyle || '');
+        });
+    }
+
+    _applyZeroSpacingToChildren(actor) {
+        this._forEachActorChild(actor, child => this._applyZeroSpacingRecursively(child));
+    }
+
+    _restoreZeroSpacingRecursively(actor) {
+        this._walkActorTree(actor, currentActor => {
+            if (!currentActor?.set_style || currentActor._mmMainPanelZeroBaseStyle === undefined)
+                return;
+
+            currentActor.set_style(currentActor._mmMainPanelZeroBaseStyle || null);
+            delete currentActor._mmMainPanelZeroBaseStyle;
+        });
+    }
+
+    _restoreZeroSpacingFromChildren(actor) {
+        this._forEachActorChild(actor, child => this._restoreZeroSpacingRecursively(child));
+    }
+
+    _applyPaddingToDisplayActor(actor, padding) {
+        if (actor.set_style) {
+            const baseStyle = actor._mmMainPanelZeroBaseStyle ?? actor.get_style?.() ?? null;
+            if (actor._mmMainPanelZeroBaseStyle === undefined)
+                actor._mmMainPanelZeroBaseStyle = baseStyle;
+
+            const nextStyle = this._composeZeroSpacingStyle(
+                baseStyle || '',
+                `padding-left: ${padding}px; padding-right: ${padding}px;`
+            );
+            actor.set_style(nextStyle || null);
+        }
+    }
+
+    _applyMainPanelQuickSettingsInternalPadding(actor) {
+        if (!actor)
+            return;
+
+        const quickSettingsPadding = PanelSettings.getQuickSettingsGap(this._settings);
+        this._forEachActorChild(actor, child => {
+            if (child?.set_style && (child instanceof St.Icon || child instanceof St.Label))
+                this._applyPaddingToDisplayActor(child, quickSettingsPadding);
+
+            this._applyMainPanelQuickSettingsInternalPadding(child);
+        });
+    }
+
+    _applyMainPanelDisplayPadding(actor, padding) {
+        if (!actor)
+            return;
+
+        if (actor instanceof St.Icon || actor instanceof St.Label)
+            this._applyPaddingToDisplayActor(actor, padding);
+
+        this._forEachActorChild(actor, child => this._applyMainPanelDisplayPadding(child, padding));
+    }
+
+    transferBack(panel) {
+        const transferBack = this._transfered_indicators
+            .filter(element => element.monitor === panel.monitorIndex);
+
+        this._transferBack(transferBack, panel);
+    }
+
+    transferIndicators() {
+        const boxs = ['_leftBox', '_centerBox', '_rightBox'];
+        const transfers = this._settings.get_value(PanelSettings.TRANSFER_INDICATORS_ID).deep_unpack();
+        const affectedPanels = new Set();
+        let transfersChanged = false;
+
+        for (const role of Object.keys(transfers)) {
+            if (PanelSettings.isPersistentRole(role))
+                continue;
+
+            delete transfers[role];
+            transfersChanged = true;
+        }
+
+        if (transfersChanged)
+            this._settings.set_value(PanelSettings.TRANSFER_INDICATORS_ID, new GLib.Variant('a{si}', transfers));
+
+        PanelSettings.normalizeIndicatorOrder(this._settings);
+
+        const existingTransfers = [...this._transfered_indicators];
+        if (existingTransfers.length > 0)
+            this._transferBack(existingTransfers);
+
+        Object.keys(transfers)
+            .filter(iname => Object.prototype.hasOwnProperty.call(transfers, iname))
+            .map(iname => this._getTransferContext(iname, transfers[iname]))
+            .filter(Boolean)
+            .forEach(({iname, monitor, container, panel}) => {
+                boxs.forEach(box => {
+                    if (!Main.panel[box]?.contains(container))
+                        return;
+
+                    this._transfered_indicators.push({iname, box, monitor});
+                    container._mmIndicatorRole = iname;
+
+                    Main.panel[box].remove_child(container);
+                    panel[box].add_child(container);
+                    panel?._applyIndicatorPadding?.(iname, container);
+                    affectedPanels.add(panel);
+                });
+            });
+
+        for (const panel of affectedPanels)
+            panel?._reorderBoxesByIndicatorOrder?.();
+    }
+
+    _getTransferContext(iname, monitor) {
+        const indicator = Main.panel.statusArea[iname];
+        const container = this._getIndicatorContainer(indicator);
+        const panel = this._findPanel(monitor);
+
+        if (!indicator || !container || !panel)
+            return null;
+
+        return {iname, monitor, indicator, container, panel};
+    }
+
+    _findPanel(monitor) {
+        return this._getPanels().find(panel => panel.monitorIndex === monitor) ?? null;
+    }
+
+    _getMainPanelRestoreIndex(boxName) {
+        if (boxName !== '_leftBox')
+            return 0;
+
+        const leftBoxChildren = Main.panel[boxName].get_n_children();
+        return leftBoxChildren > 1 ? leftBoxChildren : 1;
+    }
+
+    _transferBack(transferBack, panel = null) {
+        transferBack.forEach(element => {
+            const idx = this._transfered_indicators.indexOf(element);
+            if (idx >= 0)
+                this._transfered_indicators.splice(idx, 1);
+
+            if (!Main.panel.statusArea[element.iname])
+                return;
+
+            const indicator = Main.panel.statusArea[element.iname];
+            const container = this._getIndicatorContainer(indicator);
+            const targetPanel = panel ?? this._findPanel(element.monitor);
+
+            if (!targetPanel || !container || !targetPanel[element.box]?.contains(container))
+                return;
+
+            targetPanel?._restoreIndicatorPadding?.(element.iname, container);
+            targetPanel[element.box].remove_child(container);
+            Main.panel[element.box].insert_child_at_index(
+                container,
+                this._getMainPanelRestoreIndex(element.box)
+            );
+        });
+    }
+
+    _getIndicatorContainer(indicator) {
+        if (!indicator)
+            return null;
+
+        return indicator.container ?? indicator;
+    }
+
+    _extensionStateChanged() {
+        this._syncMainPanelIndicators();
+        this._queueMainPanelRefresh();
+        this._forEachPanel(panel => {
+            panel?._ensureQuickSettingsRightmost?.();
+            panel?._reorderBoxesByIndicatorOrder?.();
+        });
+    }
+
+    _updateSessionIndicators() {
+        const sessionIndicators = [];
+        sessionIndicators.push('MultiMonitorsAddOn');
+
+        const sessionPanel = Main.sessionMode.panel;
+        for (const sessionBox in sessionPanel) {
+            sessionPanel[sessionBox].forEach(sessionIndicator => {
+                sessionIndicators.push(sessionIndicator);
+            });
+        }
+
+        this._session_indicators = sessionIndicators;
+        this._available_indicators = [];
+
+        this._syncMainPanelIndicators();
+        this._queueMainPanelRefresh();
+    }
+
+    _queueMainPanelRefresh() {
+        const delays = [150, 500, 1200];
+
+        for (const delay of delays) {
+            const timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => {
+                this._syncMainPanelIndicators();
+
+                this._mainPanelRefreshTimeoutIds = this._mainPanelRefreshTimeoutIds
+                    .filter(id => id !== timeoutId);
+                return GLib.SOURCE_REMOVE;
+            });
+
+            this._mainPanelRefreshTimeoutIds.push(timeoutId);
+        }
+    }
+
+    _findAvailableIndicators() {
+        const excludedIndicators = this._settings.get_strv(PanelSettings.EXCLUDE_INDICATORS_ID);
+        const statusArea = Main.panel.statusArea;
+        const availableIndicators = Object.keys(statusArea).filter(indicator =>
+            Object.prototype.hasOwnProperty.call(statusArea, indicator) &&
+            PanelSettings.isPersistentRole(indicator) &&
+            !excludedIndicators.includes(indicator) &&
+            (indicator === 'keyboard' || this._isIndicatorVisible(statusArea[indicator])));
+
+        this._assignPreferredPositionsToNewIndicators(availableIndicators);
+        this._assignPreferredOrderToNewIndicators(availableIndicators);
+        this._pruneIndicatorSettings(availableIndicators);
+
+        if (availableIndicators.length !== this._available_indicators.length ||
+            availableIndicators.some((v, i) => v !== this._available_indicators[i])) {
+            this._available_indicators = availableIndicators;
+            this._settings.set_strv(PanelSettings.AVAILABLE_INDICATORS_ID, this._available_indicators);
+        }
+    }
+
+    _assignPreferredPositionsToNewIndicators(availableIndicators) {
+        const currentPositions = this._settings.get_value(PanelSettings.INDICATOR_POSITIONS_ID).deep_unpack();
+        let changed = false;
+
+        for (const role of availableIndicators) {
+            if (!PanelSettings.isPersistentRole(role))
+                continue;
+
+            if (Object.prototype.hasOwnProperty.call(currentPositions, role))
+                continue;
+
+            if (role === 'dateMenu' || role === 'quickSettings')
+                continue;
+
+            currentPositions[role] = PanelSettings.PANEL_BOX_RIGHT;
+            changed = true;
+        }
+
+        if (changed)
+            this._settings.set_value(PanelSettings.INDICATOR_POSITIONS_ID, new GLib.Variant('a{ss}', currentPositions));
+    }
+
+    _assignPreferredOrderToNewIndicators(availableIndicators) {
+        const currentOrder = this._settings.get_strv(PanelSettings.INDICATOR_ORDER_ID) || [];
+        const currentPositions = this._settings.get_value(PanelSettings.INDICATOR_POSITIONS_ID).deep_unpack();
+        const newRoles = availableIndicators.filter(role => {
+            if (!PanelSettings.isPersistentRole(role))
+                return false;
+
+            if (role === 'dateMenu' || role === 'quickSettings')
+                return false;
+
+            return !currentOrder.includes(role) && currentPositions[role] === PanelSettings.PANEL_BOX_RIGHT;
+        });
+
+        if (newRoles.length === 0)
+            return;
+
+        const nextOrder = currentOrder.filter(role => PanelSettings.isPersistentRole(role));
+        let insertIndex = nextOrder.findIndex(role =>
+            PanelSettings.getIndicatorPosition(this._settings, role) === PanelSettings.PANEL_BOX_RIGHT);
+
+        if (insertIndex < 0)
+            insertIndex = nextOrder.length;
+
+        nextOrder.splice(insertIndex, 0, ...newRoles);
+        this._settings.set_strv(PanelSettings.INDICATOR_ORDER_ID, nextOrder);
+    }
+
+    _isIndicatorVisible(indicator) {
+        const container = this._getIndicatorContainer(indicator);
+        if (!indicator || !container)
+            return false;
+
+        if (indicator.visible === false || container.visible === false)
+            return false;
+
+        const visibleDescendants = actor => {
+            if (!actor || actor.visible === false)
+                return false;
+
+            if (actor instanceof St.Icon || actor instanceof St.Label)
+                return true;
+
+            const children = actor.get_children?.() ?? [];
+            if (children.length === 0)
+                return true;
+
+            return children.some(child => visibleDescendants(child));
+        };
+
+        return visibleDescendants(container);
+    }
+
+    _pruneIndicatorSettings(availableIndicators) {
+        const allowedRoles = new Set([
+            ...PanelSettings.FIXED_EXTERNAL_PANEL_ROLES,
+            ...availableIndicators,
+        ]);
+        this._pruneDictionarySetting(
+            PanelSettings.TRANSFER_INDICATORS_ID,
+            'a{si}',
+            this._settings.get_value(PanelSettings.TRANSFER_INDICATORS_ID).deep_unpack(),
+            allowedRoles
+        );
+
+        this._pruneArraySetting(PanelSettings.INDICATOR_ORDER_ID, allowedRoles);
+        this._pruneArraySetting(PanelSettings.HIDDEN_INDICATORS_ID, allowedRoles);
+
+        this._pruneDictionarySetting(
+            PanelSettings.INDICATOR_POSITIONS_ID,
+            'a{ss}',
+            this._settings.get_value(PanelSettings.INDICATOR_POSITIONS_ID).deep_unpack(),
+            allowedRoles
+        );
+
+        this._pruneDictionarySetting(
+            PanelSettings.INDICATOR_PADDING_ID,
+            'a{si}',
+            this._settings.get_value(PanelSettings.INDICATOR_PADDING_ID).deep_unpack(),
+            allowedRoles,
+            padding => Number.isInteger(padding) ? padding : 0
+        );
+    }
+
+    _pruneArraySetting(key, allowedRoles) {
+        const currentValue = this._settings.get_strv(key) || [];
+        const nextValue = currentValue.filter(role =>
+            PanelSettings.isPersistentRole(role) && allowedRoles.has(role));
+
+        if (nextValue.length !== currentValue.length)
+            this._settings.set_strv(key, nextValue);
+    }
+
+    _pruneDictionarySetting(key, variantType, currentValue, allowedRoles, mapValue = value => value) {
+        let changed = false;
+        const nextValue = Object.fromEntries(
+            Object.entries(currentValue).flatMap(([role, value]) => {
+                if (!PanelSettings.isPersistentRole(role) || !allowedRoles.has(role)) {
+                    changed = true;
+                    return [];
+                }
+
+                return [[role, mapValue(value)]];
+            })
+        );
+
+        if (changed)
+            this._settings.set_value(key, new GLib.Variant(variantType, nextValue));
+    }
+
+    _getMainPanelPaddingTarget(role) {
+        const indicator = Main.panel.statusArea[role];
+        if (!indicator)
+            return null;
+
+        const container = this._getIndicatorContainer(indicator);
+        const parent = container?.get_parent?.() ?? null;
+        if (parent !== Main.panel._leftBox && parent !== Main.panel._centerBox && parent !== Main.panel._rightBox)
+            return null;
+
+        if (role === 'quickSettings') {
+            const contentBox = this._findNamedContainer(container, [
+                'panel-status-indicators-box',
+                'panel-status-menu-box',
+            ]);
+            return contentBox ?? container;
+        }
+
+        if (role === 'activities' && indicator.label_actor)
+            return indicator.label_actor;
+
+        if (role === 'screenRecording')
+            return container;
+
+        if (role === 'dateMenu' && indicator._clockDisplay) {
+            const clockParent = indicator._clockDisplay.get_parent?.() ?? null;
+            return clockParent ?? indicator._clockDisplay;
+        }
+
+        if (indicator._clockDisplay)
+            return indicator._clockDisplay;
+
+        if (role === 'keyboard') {
+            const displayChild = this._findFirstDisplayChild(container);
+            if (displayChild)
+                return displayChild;
+        }
+
+        const firstChild = container?.get_first_child?.() ?? null;
+        return firstChild ?? container;
+    }
+
+    _findNamedContainer(actor, classNames) {
+        if (!actor)
+            return null;
+
+        const actorClasses = actor.get_style_class_name?.()?.split(/\s+/).filter(Boolean) ?? [];
+        if (classNames.some(className => actorClasses.includes(className)))
+            return actor;
+
+        const children = actor.get_children?.() ?? [];
+        for (const child of children) {
+            const match = this._findNamedContainer(child, classNames);
+            if (match)
+                return match;
+        }
+
+        return null;
+    }
+
+    _findFirstDisplayChild(actor) {
+        if (!actor)
+            return null;
+
+        if (actor instanceof St.Label || actor instanceof St.Icon)
+            return actor;
+
+        const children = actor.get_children?.() ?? [];
+        for (const child of children) {
+            const displayChild = this._findFirstDisplayChild(child);
+            if (displayChild)
+                return displayChild;
+        }
+
+        return null;
+    }
+
+    _getMainPanelStyleRoots(role) {
+        const indicator = Main.panel.statusArea[role];
+        if (!indicator)
+            return [];
+
+        const roots = [];
+        const pushUnique = actor => {
+            if (!actor || roots.includes(actor))
+                return;
+            roots.push(actor);
+        };
+
+        pushUnique(indicator);
+        pushUnique(this._getIndicatorContainer(indicator));
+        pushUnique(this._getMainPanelPaddingTarget(role));
+
+        return roots;
+    }
+
+    _preserveMainPanelIndicatorPadding(role) {
+        return role === 'screenRecording';
+    }
+
+    _forEachMainPanelPaddingEntry(callback) {
+        this._getPersistentStatusRoles().forEach(role => {
+            const target = this._getMainPanelPaddingTarget(role);
+            const roots = this._getMainPanelStyleRoots(role);
+            if (!target || roots.length === 0)
+                return;
+
+            callback({role, target, roots});
+        });
+    }
+
+    _applyMainPanelPaddingPreparation(role, target, roots) {
+        if (this._preserveMainPanelIndicatorPadding(role))
+            return;
+
+        roots.forEach(root => {
+            if (root === target) {
+                this._applyZeroSpacingStyle(root, root._mmMainPanelZeroBaseStyle ?? root.get_style?.() ?? '');
+                this._applyZeroSpacingToChildren(root);
+                return;
+            }
+
+            this._applyZeroSpacingRecursively(root);
+        });
+    }
+
+    _applyMainPanelPaddingStyle(role, target, padding) {
+        if (this._preserveMainPanelIndicatorPadding(role)) {
+            if (target._mmMainPanelPreservedBaseStyle === undefined)
+                target._mmMainPanelPreservedBaseStyle = target.get_style?.() ?? null;
+
+            const preservedBaseStyle = target._mmMainPanelPreservedBaseStyle || '';
+            const nextStyle = `${preservedBaseStyle}${preservedBaseStyle ? ' ' : ''}padding-left: ${padding}px; padding-right: ${padding}px;`.trim();
+            target.set_style(nextStyle || null);
+            return;
+        }
+
+        const baseStyle = target._mmMainPanelZeroBaseStyle || '';
+        const nextStyle = this._composeZeroSpacingStyle(
+            baseStyle,
+            `padding-left: ${padding}px; padding-right: ${padding}px;`
+        );
+        target.set_style(nextStyle || null);
+    }
+
+    _applyActivitiesMainPanelPadding(role, target, padding) {
+        const indicator = Main.panel.statusArea[role];
+        const container = this._getIndicatorContainer(indicator);
+        if (container?.set_style) {
+            const containerBaseStyle = container._mmMainPanelZeroBaseStyle ?? container.get_style?.() ?? '';
+            container.set_style(this._composeZeroSpacingStyle(
+                containerBaseStyle,
+                `padding-left: ${padding}px; padding-right: ${padding}px;`
+            ));
+        }
+
+        this._applyMainPanelDisplayPadding(target, padding);
+    }
+
+    _applyMainPanelPaddingPostProcessing(role, target, padding) {
+        if (role === 'activities') {
+            this._applyActivitiesMainPanelPadding(role, target, padding);
+            return;
+        }
+
+        if (role === 'quickSettings') {
+            this._applyMainPanelQuickSettingsInternalPadding(target);
+            return;
+        }
+
+        if (role !== 'dateMenu' && !this._preserveMainPanelIndicatorPadding(role))
+            this._applyMainPanelDisplayPadding(target, padding);
+    }
+
+    _applyMainPanelIndicatorPadding() {
+        this._forEachMainPanelPaddingEntry(({role, target, roots}) => {
+            if (!PanelSettings.hasIndicatorPaddingOverride(this._settings, role)) {
+                this._restoreMainPanelPaddingEntry(role, target, roots);
+
+                if (role === 'quickSettings')
+                    this._applyMainPanelQuickSettingsInternalPadding(target);
+
+                return;
+            }
+
+            this._applyMainPanelPaddingPreparation(role, target, roots);
+            const padding = PanelSettings.getIndicatorPadding(this._settings, role);
+            this._applyMainPanelPaddingStyle(role, target, padding);
+            this._applyMainPanelPaddingPostProcessing(role, target, padding);
+        });
+    }
+
+    _restoreMainPanelPaddingEntry(role, target, roots) {
+        if (this._preserveMainPanelIndicatorPadding(role)) {
+            if (target._mmMainPanelPreservedBaseStyle !== undefined) {
+                target.set_style(target._mmMainPanelPreservedBaseStyle || null);
+                delete target._mmMainPanelPreservedBaseStyle;
+            }
+            return;
+        }
+
+        roots.forEach(root => {
+            if (root === target) {
+                if (root._mmMainPanelZeroBaseStyle !== undefined) {
+                    root.set_style(root._mmMainPanelZeroBaseStyle || null);
+                    delete root._mmMainPanelZeroBaseStyle;
+                }
+                this._restoreZeroSpacingFromChildren(root);
+                return;
+            }
+
+            this._restoreZeroSpacingRecursively(root);
+        });
+    }
+
+    _restoreMainPanelIndicatorPadding() {
+        this._forEachMainPanelPaddingEntry(({role, target, roots}) => {
+            this._restoreMainPanelPaddingEntry(role, target, roots);
+        });
+    }
+
+    _getMainPanelGapTargets() {
+        return [Main.panel._leftBox, Main.panel._centerBox, Main.panel._rightBox].filter(Boolean);
+    }
+
+    _forEachMainPanelGapTarget(callback) {
+        this._getMainPanelGapTargets().forEach(target => callback(target));
+    }
+
+    _applyMainPanelGapStyle(target, gap) {
+        PanelSettings.applyGapStyle(target, '_mmMainPanelGapStyle', gap);
+    }
+
+    _applyMainPanelIndicatorGap() {
+        const gap = PanelSettings.getIndicatorGap(this._settings);
+        this._forEachMainPanelGapTarget(target => this._applyMainPanelGapStyle(target, gap));
+    }
+
+    _restoreMainPanelIndicatorGap() {
+        this._forEachMainPanelGapTarget(target => {
+            if (target._mmMainPanelGapStyle === undefined)
+                return;
+
+            target.set_style(target._mmMainPanelGapStyle || null);
+            delete target._mmMainPanelGapStyle;
+        });
+    }
+
+    _getFirstExternalMonitorIndex() {
+        const primary = Main.layoutManager.primaryIndex;
+        const n = Main.layoutManager.monitors?.length ?? 1;
+
+        for (let i = 0; i < n; i++) {
+            if (i !== primary)
+                return i;
+        }
+
+        return primary;
+    }
+
+    _autoTransferIndicatorByPattern(pattern) {
+        const available = this._settings.get_strv(PanelSettings.AVAILABLE_INDICATORS_ID) || [];
+        const name = available.find(n => pattern.test(n));
+        if (!name)
+            return;
+
+        const transfers = this._settings.get_value(PanelSettings.TRANSFER_INDICATORS_ID).deep_unpack();
+        if (Object.prototype.hasOwnProperty.call(transfers, name))
+            return;
+
+        const targetMonitor = this._getFirstExternalMonitorIndex();
+        if (targetMonitor === Main.layoutManager.primaryIndex)
+            return;
+
+        transfers[name] = targetMonitor;
+        this._settings.set_value(PanelSettings.TRANSFER_INDICATORS_ID, new GLib.Variant('a{si}', transfers));
+    }
+}
 
 export {
     StatusIndicatorsController,

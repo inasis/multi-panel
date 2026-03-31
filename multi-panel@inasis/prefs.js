@@ -22,7 +22,6 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Adw from 'gi://Adw';
 import { ExtensionPreferences, gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
-import * as Constants from './mmPanelConstants.js';
 
 const SHOW_PANEL_ID = 'show-panel';
 const AVAILABLE_INDICATORS_ID = 'available-indicators';
@@ -34,6 +33,9 @@ const INDICATOR_PADDING_ID = 'indicator-padding';
 const INDICATOR_GAP_ID = 'indicator-gap';
 const QUICK_SETTINGS_GAP_ID = 'quick-settings-gap';
 const APPLY_INDICATOR_LAYOUT_TO_MAIN_PANEL_ID = 'apply-indicator-layout-to-main-panel';
+const PANEL_LEFT_PADDING_ID = 'panel-left-padding';
+const PANEL_RIGHT_PADDING_ID = 'panel-right-padding';
+const PANEL_HEIGHT_ID = 'panel-height';
 const ENABLE_HOT_CORNERS = 'enable-hot-corners';
 const SCREENSHOT_ON_ALL_MONITORS_ID = 'screenshot-on-all-monitors';
 
@@ -109,6 +111,18 @@ function getIndicatorDisplayName(role) {
     default:
         return role;
     }
+}
+
+function getDefaultIndicatorPadding(settings, role) {
+    if (role === 'quickSettings') {
+        try {
+            return settings.get_int(QUICK_SETTINGS_GAP_ID);
+        } catch (_e) {
+            return 0;
+        }
+    }
+
+    return 0;
 }
 
 function mergeUniqueRoles(...roleGroups) {
@@ -1010,7 +1024,7 @@ class IndicatorPaddingPrefsWidget extends Adw.PreferencesGroup {
         const paddingMap = this._getIndicatorPaddingMap();
         return Number.isInteger(paddingMap[role])
             ? paddingMap[role]
-            : Constants.getDefaultIndicatorPadding(this._settings, role);
+            : getDefaultIndicatorPadding(this._settings, role);
     }
 
     _setIndicatorPadding(role, padding) {
@@ -1085,7 +1099,7 @@ class IndicatorPaddingPrefsWidget extends Adw.PreferencesGroup {
         return {controlBox, valueLabel};
     }
 
-    _createHalfWidthSliderRowContent(labelText, value, onChange) {
+    _createHalfWidthSliderRowContent(labelText, value, onChange, adjustment = null) {
         const outer = new Gtk.Box({
             orientation: Gtk.Orientation.HORIZONTAL,
             spacing: 12,
@@ -1111,7 +1125,7 @@ class IndicatorPaddingPrefsWidget extends Adw.PreferencesGroup {
         outer.append(nameBox);
 
         const {controlBox, valueLabel} = this._createSliderControlBox(value);
-        const scale = this._createScale(new Gtk.Adjustment({
+        const scale = this._createScale(adjustment ?? new Gtk.Adjustment({
             lower: 0,
             upper: 30,
             step_increment: 1,
@@ -1182,9 +1196,45 @@ class IndicatorPaddingPrefsWidget extends Adw.PreferencesGroup {
         gapRow.set_child(gapBox);
         this.add(gapRow);
 
+        const panelSection = new Adw.ExpanderRow({
+            title: _('Panel Layout'),
+            subtitle: _('Adjust auxiliary panel padding and height. These settings also affect the main panel when layout syncing is enabled.'),
+            expanded: false,
+            activatable: false,
+        });
+
+        const makePanelRow = (label, key, upper = 80) => {
+            const row = new Adw.PreferencesRow({
+                activatable: false,
+                selectable: false,
+            });
+            const {outer} = this._createHalfWidthSliderRowContent(
+                label,
+                this._settings.get_int(key),
+                value => {
+                    if (value !== this._settings.get_int(key))
+                        this._settings.set_int(key, value);
+                },
+                new Gtk.Adjustment({
+                    lower: 0,
+                    upper,
+                    step_increment: 1,
+                    page_increment: 4,
+                    value: this._settings.get_int(key),
+                })
+            );
+            row.set_child(outer);
+            panelSection.add_row(row);
+        };
+
+        makePanelRow(_('Panel left padding'), PANEL_LEFT_PADDING_ID);
+        makePanelRow(_('Panel right padding'), PANEL_RIGHT_PADDING_ID);
+        makePanelRow(_('Panel height'), PANEL_HEIGHT_ID, 120);
+        this.add(panelSection);
+
         const applyRow = new Adw.ActionRow({
             title: _('Apply to main panel'),
-            subtitle: _('Use the same indicator padding and gap on the primary GNOME top bar.'),
+            subtitle: _('Use the same panel height, panel padding, and indicator spacing on the primary GNOME top bar.'),
             activatable: false,
         });
         const applySwitch = new Gtk.Switch({
@@ -1215,7 +1265,7 @@ export default class MultiMonitorsExtensionPreferences extends ExtensionPreferen
         window.add(settingsPage);
 
         const paddingPage = new Adw.PreferencesPage({
-            title: _('Padding'),
+            title: _('Layout'),
             icon_name: 'view-more-symbolic',
         });
         paddingPage.add(new IndicatorPaddingPrefsWidgetGObject(settings));

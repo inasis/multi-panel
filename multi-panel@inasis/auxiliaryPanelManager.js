@@ -21,7 +21,8 @@ import Gio from 'gi://Gio';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as Layout from 'resource:///org/gnome/shell/ui/layout.js';
 
-import * as MMPanel from './mmpanel.js';
+import * as AuxiliaryPanel from './auxiliaryPanel.js';
+import * as PanelSettings from './panelSettings.js';
 
 export const SHOW_PANEL_ID = 'show-panel';
 export const ENABLE_HOT_CORNERS = 'enable-hot-corners';
@@ -91,36 +92,10 @@ function getMonitorId(index, monitor) {
 	return `i${index}x${monitor.x}y${monitor.y}w${monitor.width}h${monitor.height}`;
 }
 
-function sanitizeInlineStyle(style) {
-	if (!style || typeof style !== 'string')
-		return null;
-
-	const lengthLikeProperty = /^(?:padding|margin|spacing|width|height|min-width|min-height|max-width|max-height|icon-size|border(?:-(?:top|right|bottom|left))?-width|-natural-hpadding|-minimum-hpadding)$/i;
-	const validLengthValue = /^(?:-?\d+(?:\.\d+)?(?:px|pt|em|rem|%)?|0|auto|inherit|initial|unset|calc\(.+\)|var\(.+\))$/i;
-
-	const sanitized = style
-		.split(';')
-		.map(part => part.trim())
-		.filter(Boolean)
-		.filter(part => part.includes(':'))
-		.map(part => {
-			const [property, ...valueParts] = part.split(':');
-			const name = property.trim();
-			const value = valueParts.join(':').trim();
-			return { name, value };
-		})
-		.filter(({ name, value }) => name && value)
-		.filter(({ value }) => !/(?:^|[\s:(-])(NaN|undefined|null)(?:$|[\s);-])/i.test(value))
-		.filter(({ name, value }) => !lengthLikeProperty.test(name) || validLengthValue.test(value))
-		.map(({ name, value }) => `${name}: ${value}`)
-		.join('; ');
-
-	return sanitized || null;
-}
-
 export class MultiMonitorsPanelBox {
-	constructor(monitor) {
+	constructor(monitor, settings) {
 		this._backgroundClones = [];
+		this._settings = settings;
 
 		this.panelBox = new St.Widget({
 			name: 'panelBox',
@@ -132,10 +107,7 @@ export class MultiMonitorsPanelBox {
 		Main.layoutManager.addChrome(this.panelBox, { affectsStruts: true, trackFullscreen: true });
 		this.panelBox.set_position(monitor.x, monitor.y);
 
-		// Get main panel height to match it exactly
-		const mainPanelHeight = Main.layoutManager.panelBox.height;
-		// Lock the height instead of using -1 (auto)
-		this.panelBox.set_size(monitor.width, mainPanelHeight > 0 ? mainPanelHeight : 30);
+		this._setPanelBoxSize(monitor);
 
 		Main.uiGroup.set_child_below_sibling(this.panelBox, Main.layoutManager.panelBox);
 	}
@@ -154,10 +126,14 @@ export class MultiMonitorsPanelBox {
 			return;
 
 		this.panelBox.set_position(monitor.x, monitor.y);
-		// Get main panel height to match it exactly
+		this._setPanelBoxSize(monitor);
+	}
+
+	_setPanelBoxSize(monitor) {
 		const mainPanelHeight = Main.layoutManager.panelBox.height;
-		// Lock the height instead of using -1 (auto)
-		this.panelBox.set_size(monitor.width, mainPanelHeight > 0 ? mainPanelHeight : 30);
+	const configuredHeight = PanelSettings.getPanelHeight(this._settings);
+		const height = configuredHeight > 0 ? configuredHeight : (mainPanelHeight > 0 ? mainPanelHeight : 30);
+		this.panelBox.set_size(monitor.width, height);
 	}
 
 	_syncPanelBoxAppearance(mainPanelBox) {
@@ -170,7 +146,7 @@ export class MultiMonitorsPanelBox {
 			if (this.panelBox.get_style_class_name?.() !== styleClass)
 				this.panelBox.set_style_class_name(styleClass);
 
-			const style = sanitizeInlineStyle(mainPanelBox.get_style?.() ?? null);
+			const style = PanelSettings.sanitizeInlineStyle(mainPanelBox.get_style?.() ?? null);
 			if (this.panelBox.get_style?.() !== style)
 				this.panelBox.set_style(style);
 		} catch (_e) {
@@ -286,6 +262,7 @@ export class MultiMonitorsLayoutManager {
 
 		this._showAppMenuId = null;
 		this._monitorsChangedId = null;
+		this._panelHeightChangedId = null;
 
 		this.statusIndicatorsController = null;
 		this._layoutManager_updateHotCorners = null;
@@ -354,11 +331,17 @@ export class MultiMonitorsLayoutManager {
 				this._monitorsChanged();
 			}
 			if (!this._showAppMenuId) {
-				this._showAppMenuId = this._settings.connect('changed::' + MMPanel.SHOW_APP_MENU_ID, this._showAppMenu.bind(this));
+				this._showAppMenuId = this._settings.connect('changed::' + AuxiliaryPanel.SHOW_APP_MENU_ID, this._showAppMenu.bind(this));
+			}
+			if (!this._panelHeightChangedId) {
+				this._panelHeightChangedId = this._settings.connect(
+					`changed::${PanelSettings.PANEL_HEIGHT_ID}`,
+					this._syncExternalPanelHeights.bind(this)
+				);
 			}
 
 			if (!this.statusIndicatorsController) {
-				this.statusIndicatorsController = new MMPanel.StatusIndicatorsController(this._settings);
+				this.statusIndicatorsController = new AuxiliaryPanel.StatusIndicatorsController(this._settings);
 			}
 
 			if (!this._layoutManager_updateHotCorners) {
@@ -392,6 +375,10 @@ export class MultiMonitorsLayoutManager {
 		if (this._showAppMenuId) {
 			this._settings.disconnect(this._showAppMenuId);
 			this._showAppMenuId = null;
+		}
+		if (this._panelHeightChangedId) {
+			this._settings.disconnect(this._panelHeightChangedId);
+			this._panelHeightChangedId = null;
 		}
 		this._hideAppMenu();
 
@@ -436,8 +423,8 @@ export class MultiMonitorsLayoutManager {
 			return;
 		}
 
-		let mmPanelBox = new MultiMonitorsPanelBox(monitor);
-		let panel = new MMPanel.MultiMonitorsPanel(i, mmPanelBox, this._settings);
+		let mmPanelBox = new MultiMonitorsPanelBox(monitor, this._settings);
+		let panel = new AuxiliaryPanel.MultiMonitorsPanel(i, mmPanelBox, this._settings);
 
 		const mmPanelRef = getMMPanelArray();
 		if (mmPanelRef) {
@@ -464,5 +451,15 @@ export class MultiMonitorsLayoutManager {
 
 	_hideAppMenu() {
 		// No-op for GNOME 45+
+	}
+
+	_syncExternalPanelHeights() {
+		this._forEachExternalMonitor((monitor, index) => {
+			const panelIndex = index > Main.layoutManager.primaryIndex ? index - 1 : index;
+			this.mmPanelBox[panelIndex]?.updatePanel?.(monitor);
+			const panel = getMMPanelArray()?.find(candidate => candidate.monitorIndex === index);
+			panel?._syncPanelAppearance?.();
+			panel?.queue_relayout?.();
+		});
 	}
 }
