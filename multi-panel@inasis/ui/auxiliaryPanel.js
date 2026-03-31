@@ -1,5 +1,6 @@
 /*
 Copyright (C) 2014  spin83
+Copyright (C) 2026  inasis
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -31,11 +32,11 @@ import * as CtrlAltTab from 'resource:///org/gnome/shell/ui/ctrlAltTab.js';
 import * as Layout from 'resource:///org/gnome/shell/ui/layout.js';
 import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
 
-import * as MMCalendar from './mmcalendar.js';
+import * as DateMenuPanel from './dateMenuPanel.js';
 import * as PanelSettings from '../services/panelSettings.js';
 import { MirroredIndicatorButton } from './mirroredIndicator.js';
 
-MMCalendar.setMainRef(Main);
+DateMenuPanel.setShellMain(Main);
 
 // Re-export for backward compatibility
 export const setMMPanelArrayRef = PanelSettings.setMMPanelArrayRef;

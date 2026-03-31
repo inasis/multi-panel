@@ -192,22 +192,22 @@ msgstr ""
 msgid "Top Bar"
 msgstr ""
 
-#: ui/mmcalendar.js
+#: ui/dateMenuPanel.js
 msgid "No Notifications"
 msgstr ""
 
-#: ui/mmcalendar.js
+#: ui/dateMenuPanel.js
 msgid "%OB"
 msgstr ""
 
-#: ui/mmcalendar.js
+#: ui/dateMenuPanel.js
 msgid "%OB %Y"
 msgstr ""
 
-#: ui/mmcalendar.js
+#: ui/dateMenuPanel.js
 msgid "Do Not Disturb"
 msgstr ""
 
-#: ui/mmcalendar.js
+#: ui/dateMenuPanel.js
 msgid "Clear"
 msgstr ""

@@ -1,5 +1,6 @@
 /*
 Copyright (C) 2014  spin83
+Copyright (C) 2026  inasis
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
