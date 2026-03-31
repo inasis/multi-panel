@@ -21,10 +21,10 @@ import * as PanelModule from 'resource:///org/gnome/shell/ui/panel.js';
 
 // Shell version for feature detection - centralized here and exported for other modules
 
-import * as Common from './common.js';
-import * as AuxiliaryPanelManager from './auxiliaryPanelManager.js';
-import * as AuxiliaryPanel from './auxiliaryPanel.js';
-import * as ScreenshotHandler from './screenshotHandler.js';
+import * as Common from './shared/common.js';
+import * as AuxiliaryPanelManager from './services/auxiliaryPanelManager.js';
+import * as AuxiliaryPanel from './ui/auxiliaryPanel.js';
+import * as ScreenshotHandler from './services/screenshotHandler.js';
 
 export const shellVersion = Common.shellVersion;
 export const patchAddActorMethod = Common.patchAddActorMethod;

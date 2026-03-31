@@ -23,7 +23,7 @@ import GLib from 'gi://GLib';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
-import * as Constants from './panelSettings.js';
+import * as Constants from '../services/panelSettings.js';
 
 // Lightweight mirrored indicator that visually clones an existing indicator
 // (e.g., Vitals) from the main panel and opens its menu anchored to this button.

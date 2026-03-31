@@ -21,7 +21,7 @@ import Gio from 'gi://Gio';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as Layout from 'resource:///org/gnome/shell/ui/layout.js';
 
-import * as AuxiliaryPanel from './auxiliaryPanel.js';
+import * as AuxiliaryPanel from '../ui/auxiliaryPanel.js';
 import * as PanelSettings from './panelSettings.js';
 
 export const SHOW_PANEL_ID = 'show-panel';

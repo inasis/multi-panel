@@ -32,7 +32,7 @@ import * as Layout from 'resource:///org/gnome/shell/ui/layout.js';
 import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import * as MMCalendar from './mmcalendar.js';
-import * as PanelSettings from './panelSettings.js';
+import * as PanelSettings from '../services/panelSettings.js';
 import { MirroredIndicatorButton } from './mirroredIndicator.js';
 
 MMCalendar.setMainRef(Main);

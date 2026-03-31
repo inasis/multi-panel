@@ -31,8 +31,8 @@ import * as Calendar from 'resource:///org/gnome/shell/ui/calendar.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
 
-import * as Common from './common.js';
-import { shellVersion } from './common.js';
+import * as Common from '../shared/common.js';
+import { shellVersion } from '../shared/common.js';
 
 export let MainRef = null;
 export function setMainRef(m) { MainRef = m; }
