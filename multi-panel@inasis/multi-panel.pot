@@ -15,7 +15,7 @@ msgstr ""
 msgid "Application Menu"
 msgstr ""
 
-#: ui/auxiliaryPanel.js
+#: ui/panel.js
 #: prefs.js
 msgid "Activities"
 msgstr ""
@@ -188,26 +188,26 @@ msgstr ""
 msgid "Use the same panel height, panel padding, and indicator spacing on the primary GNOME top bar."
 msgstr ""
 
-#: ui/auxiliaryPanel.js
+#: ui/panel.js
 msgid "Top Bar"
 msgstr ""
 
-#: ui/dateMenuPanel.js
+#: ui/dateMenu.js
 msgid "No Notifications"
 msgstr ""
 
-#: ui/dateMenuPanel.js
+#: ui/dateMenu.js
 msgid "%OB"
 msgstr ""
 
-#: ui/dateMenuPanel.js
+#: ui/dateMenu.js
 msgid "%OB %Y"
 msgstr ""
 
-#: ui/dateMenuPanel.js
+#: ui/dateMenu.js
 msgid "Do Not Disturb"
 msgstr ""
 
-#: ui/dateMenuPanel.js
+#: ui/dateMenu.js
 msgid "Clear"
 msgstr ""

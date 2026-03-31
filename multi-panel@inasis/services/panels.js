@@ -16,241 +16,23 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, visit https://www.gnu.org/licenses/.
 */
 
-import Clutter from 'gi://Clutter';
-import St from 'gi://St';
 import Gio from 'gi://Gio';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as Layout from 'resource:///org/gnome/shell/ui/layout.js';
 
-import * as AuxiliaryPanel from '../ui/auxiliaryPanel.js';
-import * as PanelSettings from './panelSettings.js';
+import * as PanelSettings from './settings.js';
+import { MultiMonitorsPanelBox } from './panelBox.js';
+import {
+	getMMPanelArray,
+	getMonitorId,
+	setMMPanelArrayRef,
+} from './panelRuntime.js';
+import { MultiMonitorsPanel } from '../ui/panel.js';
+import { StatusIndicatorsController } from '../ui/indicators.js';
 
 export const SHOW_PANEL_ID = 'show-panel';
 export const ENABLE_HOT_CORNERS = 'enable-hot-corners';
-
-// Store reference to mmPanel array set by extension.js
-let _mmPanelArrayRef = null;
-
-// Helper function to set the mmPanel reference
-export function setMMPanelArrayRef(mmPanelArray) {
-	_mmPanelArrayRef = mmPanelArray;
-}
-
-// Helper function to safely access mmPanel array
-function getMMPanelArray() {
-	// First try Main.mmPanel if it exists
-	if ('mmPanel' in Main && Main.mmPanel) {
-		return Main.mmPanel;
-	}
-	// Fall back to stored reference
-	return _mmPanelArrayRef;
-}
-
-function isDisposedActor(actor) {
-	if (!actor)
-		return true;
-
-	if (actor._mmDisposed === true)
-		return true;
-
-	try {
-		void actor.visible;
-		return false;
-	} catch (_e) {
-		return true;
-	}
-}
-
-function trackActorDispose(actor) {
-	if (!actor?.connect)
-		return;
-
-	actor._mmDisposed = false;
-	actor.connect('destroy', () => {
-		actor._mmDisposed = true;
-	});
-}
-
-function disconnectSignal(source, signalId) {
-	if (!source || !signalId)
-		return;
-
-	try {
-		source.disconnect(signalId);
-	} catch (_e) {
-	}
-}
-
-function removeActorFromParent(actor) {
-	try {
-		if (actor?.get_parent())
-			actor.get_parent().remove_child(actor);
-	} catch (_e) {
-	}
-}
-
-function getMonitorId(index, monitor) {
-	return `i${index}x${monitor.x}y${monitor.y}w${monitor.width}h${monitor.height}`;
-}
-
-export class MultiMonitorsPanelBox {
-	constructor(monitor, settings) {
-		this._backgroundClones = [];
-		this._settings = settings;
-
-		this.panelBox = new St.Widget({
-			name: 'panelBox',
-			layout_manager: new Clutter.BinLayout(),
-			clip_to_allocation: true,
-			visible: true
-		});
-		trackActorDispose(this.panelBox);
-		Main.layoutManager.addChrome(this.panelBox, { affectsStruts: true, trackFullscreen: true });
-		this.panelBox.set_position(monitor.x, monitor.y);
-
-		this._setPanelBoxSize(monitor);
-
-		Main.uiGroup.set_child_below_sibling(this.panelBox, Main.layoutManager.panelBox);
-	}
-
-	destroy() {
-		this._clearBackgroundClones();
-		if (!isDisposedActor(this.panelBox)) {
-			this.panelBox._mmDisposed = true;
-			this.panelBox.destroy();
-		}
-		this.panelBox = null;
-	}
-
-	updatePanel(monitor) {
-		if (isDisposedActor(this.panelBox))
-			return;
-
-		this.panelBox.set_position(monitor.x, monitor.y);
-		this._setPanelBoxSize(monitor);
-	}
-
-	_setPanelBoxSize(monitor) {
-		const mainPanelHeight = Main.layoutManager.panelBox.height;
-	const configuredHeight = PanelSettings.getPanelHeight(this._settings);
-		const height = configuredHeight > 0 ? configuredHeight : (mainPanelHeight > 0 ? mainPanelHeight : 30);
-		this.panelBox.set_size(monitor.width, height);
-	}
-
-	_syncPanelBoxAppearance(mainPanelBox) {
-		try {
-			this.panelBox.visible = mainPanelBox.visible;
-			this.panelBox.opacity = mainPanelBox.opacity;
-			this.panelBox.reactive = mainPanelBox.reactive;
-
-			const styleClass = mainPanelBox.get_style_class_name?.() ?? '';
-			if (this.panelBox.get_style_class_name?.() !== styleClass)
-				this.panelBox.set_style_class_name(styleClass);
-
-			const style = PanelSettings.sanitizeInlineStyle(mainPanelBox.get_style?.() ?? null);
-			if (this.panelBox.get_style?.() !== style)
-				this.panelBox.set_style(style);
-		} catch (_e) {
-			return false;
-		}
-
-		return true;
-	}
-
-	syncFromMainPanel() {
-		const mainPanelBox = Main.layoutManager.panelBox;
-		if (!mainPanelBox || isDisposedActor(mainPanelBox) || isDisposedActor(this.panelBox))
-			return;
-
-		if (!this._syncPanelBoxAppearance(mainPanelBox))
-			return;
-
-		const blurMyShellActors = global.blur_my_shell?._panel_blur?.actors_list ?? [];
-		const hasDirectBlur = blurMyShellActors.some(actors => actors?.widgets?.panel_box === this.panelBox);
-		if (hasDirectBlur) {
-			this._clearBackgroundClones();
-			return;
-		}
-
-		this._syncBackgroundClones(mainPanelBox);
-	}
-
-	_syncBackgroundCloneVisibility(entry) {
-		const {source, clone} = entry;
-		if (isDisposedActor(clone) || isDisposedActor(source))
-			return;
-
-		try {
-			const alloc = source.get_allocation_box();
-			const width = alloc.get_width();
-			const height = alloc.get_height();
-			clone.visible = width > 0 && height > 0;
-		} catch (_e) {
-			clone.visible = false;
-		}
-	}
-
-	_createBackgroundCloneEntry(source, index) {
-		const clone = new Clutter.Clone({
-			source,
-			reactive: false,
-			x_expand: true,
-			y_expand: true,
-			x_align: Clutter.ActorAlign.FILL,
-			y_align: Clutter.ActorAlign.FILL,
-		});
-		clone.visible = false;
-		trackActorDispose(clone);
-
-		const entry = {
-			source,
-			clone,
-			allocationSignalId: 0,
-		};
-
-		entry.allocationSignalId = source.connect
-			? source.connect('notify::allocation', () => this._syncBackgroundCloneVisibility(entry))
-			: 0;
-
-		this.panelBox.insert_child_at_index(clone, index);
-		this._backgroundClones.push(entry);
-		this._syncBackgroundCloneVisibility(entry);
-	}
-
-	_destroyBackgroundCloneEntry(entry) {
-		if (!entry)
-			return;
-
-		disconnectSignal(entry.source, entry.allocationSignalId);
-		removeActorFromParent(entry.clone);
-		entry.clone?.destroy?.();
-	}
-
-	_createBackgroundClone(child, index) {
-		this._createBackgroundCloneEntry(child, index);
-	}
-
-	_syncBackgroundClones(mainPanelBox) {
-		const sourceChildren = mainPanelBox.get_children()
-			.filter(child => child && child !== Main.panel);
-
-		const currentSources = this._backgroundClones.map(entry => entry.source);
-		const unchanged = sourceChildren.length === currentSources.length &&
-			sourceChildren.every((child, index) => child === currentSources[index]);
-
-		if (unchanged)
-			return;
-
-		this._clearBackgroundClones();
-
-		sourceChildren.forEach((child, index) => this._createBackgroundClone(child, index));
-	}
-
-	_clearBackgroundClones() {
-		this._backgroundClones.forEach(entry => this._destroyBackgroundCloneEntry(entry));
-		this._backgroundClones = [];
-	}
-}
+export { setMMPanelArrayRef };
 
 export class MultiMonitorsLayoutManager {
 	constructor(settings) {
@@ -332,7 +114,7 @@ export class MultiMonitorsLayoutManager {
 				this._monitorsChanged();
 			}
 			if (!this._showAppMenuId) {
-				this._showAppMenuId = this._settings.connect('changed::' + AuxiliaryPanel.SHOW_APP_MENU_ID, this._showAppMenu.bind(this));
+				this._showAppMenuId = this._settings.connect(`changed::${PanelSettings.SHOW_APP_MENU_ID}`, this._showAppMenu.bind(this));
 			}
 			if (!this._panelHeightChangedId) {
 				this._panelHeightChangedId = this._settings.connect(
@@ -342,7 +124,7 @@ export class MultiMonitorsLayoutManager {
 			}
 
 			if (!this.statusIndicatorsController) {
-				this.statusIndicatorsController = new AuxiliaryPanel.StatusIndicatorsController(this._settings);
+				this.statusIndicatorsController = new StatusIndicatorsController(this._settings);
 			}
 
 			if (!this._layoutManager_updateHotCorners) {
@@ -425,7 +207,7 @@ export class MultiMonitorsLayoutManager {
 		}
 
 		let mmPanelBox = new MultiMonitorsPanelBox(monitor, this._settings);
-		let panel = new AuxiliaryPanel.MultiMonitorsPanel(i, mmPanelBox, this._settings);
+		let panel = new MultiMonitorsPanel(i, mmPanelBox, this._settings);
 
 		const mmPanelRef = getMMPanelArray();
 		if (mmPanelRef) {
