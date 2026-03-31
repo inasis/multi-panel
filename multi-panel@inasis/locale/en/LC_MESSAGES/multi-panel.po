@@ -5,149 +5,149 @@ msgstr ""
 "POT-Creation-Date: 2026-03-31 20:10+0900\n"
 "PO-Revision-Date: 2026-03-31 20:10+0900\n"
 "Last-Translator: inasis <inasis@mail.com>\n"
-"Language-Team: Spanish\n"
-"Language: es\n"
+"Language-Team: English\n"
+"Language: en\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
 msgid "Application Menu"
-msgstr "Menú de aplicaciones"
+msgstr "Application Menu"
 
 msgid "Activities"
-msgstr "Actividades"
+msgstr "Activities"
 
 msgid "Accessbility"
-msgstr "Accesibilidad"
+msgstr "Accessibility"
 
 msgid "Keyboard"
-msgstr "Teclado"
+msgstr "Keyboard"
 
 msgid "Screen Sharing"
-msgstr "Compartir pantalla"
+msgstr "Screen Sharing"
 
 msgid "Screen Recording"
-msgstr "Grabación de pantalla"
+msgstr "Screen Recording"
 
 msgid "Quick Settings"
-msgstr "Ajustes rápidos"
+msgstr "Quick Settings"
 
 msgid "Date and Clock"
-msgstr "Fecha y reloj"
+msgstr "Date and Clock"
 
 msgid "Settings"
-msgstr "Configuración"
+msgstr "Settings"
 
 msgid "Show bar on additional monitors"
-msgstr "Mostrar la barra en monitores adicionales"
+msgstr "Show bar on additional monitors"
 
 msgid "General"
 msgstr "General"
 
 msgid "General behavior for additional monitors and desktop integration."
-msgstr "Comportamiento general de los monitores adicionales y la integración con el escritorio."
+msgstr "General behavior for additional monitors and desktop integration."
 
 msgid "Enable hot corners"
-msgstr "Activar esquinas activas"
+msgstr "Enable hot corners"
 
 msgid "Show screenshot tools on all monitors"
-msgstr "Mostrar herramientas de captura en todos los monitores"
+msgstr "Show screenshot tools on all monitors"
 
 msgid "Indicators"
-msgstr "Indicadores"
+msgstr "Indicators"
 
 msgid "Reorder indicators, choose their group, and show or hide them on additional monitors."
-msgstr "Reordena los indicadores, elige su grupo y muéstralos u ocúltalos en los monitores adicionales."
+msgstr "Reorder indicators, choose their group, and show or hide them on additional monitors."
 
 msgid "Transferred Indicators"
-msgstr "Indicadores transferidos"
+msgstr "Transferred Indicators"
 
 msgid "Move stable indicators away from the primary bar to a specific monitor."
-msgstr "Mueve los indicadores estables de la barra principal a un monitor específico."
+msgstr "Move stable indicators away from the primary bar to a specific monitor."
 
 msgid "Indicators transferred to additional monitors"
-msgstr "Indicadores transferidos a monitores adicionales"
+msgstr "Indicators transferred to additional monitors"
 
 msgid "Add indicator"
-msgstr "Añadir indicador"
+msgstr "Add indicator"
 
 msgid "Remove indicator"
-msgstr "Eliminar indicador"
+msgstr "Remove indicator"
 
 msgid "Left"
-msgstr "Izquierda"
+msgstr "Left"
 
 msgid "Center"
-msgstr "Centro"
+msgstr "Center"
 
 msgid "Right"
-msgstr "Derecha"
+msgstr "Right"
 
 msgid "Choose where this indicator should appear"
-msgstr "Elige dónde debe aparecer este indicador"
+msgstr "Choose where this indicator should appear"
 
 msgid "Show or hide this indicator on Multi Monitor Bar"
-msgstr "Mostrar u ocultar este indicador en Multi Monitor Bar"
+msgstr "Show or hide this indicator on Multi Monitor Bar"
 
 msgid "Select indicator"
-msgstr "Seleccionar indicador"
+msgstr "Select indicator"
 
 msgid "Cancel"
-msgstr "Cancelar"
+msgstr "Cancel"
 
 msgid "Add"
-msgstr "Añadir"
+msgstr "Add"
 
 msgid "Indicators on Top Panel"
-msgstr "Indicadores en la barra superior"
+msgstr "Indicators on Top Panel"
 
 msgid "Monitor index:"
-msgstr "Índice del monitor:"
+msgstr "Monitor index:"
 
 msgid "Layout"
-msgstr "Diseño"
+msgstr "Layout"
 
 msgid "Adjust internal left and right padding for each indicator on additional monitor bars."
-msgstr "Ajusta el relleno interno izquierdo y derecho de cada indicador en las barras de monitores adicionales."
+msgstr "Adjust internal left and right padding for each indicator on additional monitor bars."
 
 msgid "Indicator Padding"
-msgstr "Relleno del indicador"
+msgstr "Indicator Padding"
 
 msgid "Adjust internal left and right padding for each indicator."
-msgstr "Ajusta el relleno interno izquierdo y derecho de cada indicador."
+msgstr "Adjust internal left and right padding for each indicator."
 
 msgid "Quick Settings gap"
-msgstr "Espaciado de ajustes rápidos"
+msgstr "Quick Settings gap"
 
 msgid "Indicator gap"
-msgstr "Espaciado entre indicadores"
+msgstr "Indicator gap"
 
 msgid "Panel Layout"
-msgstr "Diseño del panel"
+msgstr "Panel Layout"
 
 msgid "Adjust panel left and right padding and height."
-msgstr "Ajusta el relleno izquierdo y derecho y la altura del panel."
+msgstr "Adjust panel left and right padding and height."
 
 msgid "Panel left padding"
-msgstr "Relleno izquierdo del panel"
+msgstr "Panel left padding"
 
 msgid "Panel right padding"
-msgstr "Relleno derecho del panel"
+msgstr "Panel right padding"
 
 msgid "Panel height"
-msgstr "Altura del panel"
+msgstr "Panel height"
 
 msgid "Apply to main panel"
-msgstr "Aplicar al panel principal"
+msgstr "Apply to main panel"
 
 msgid "Use the same panel height, panel padding, and indicator spacing on the primary GNOME top bar."
-msgstr "Usar la misma altura del panel, el mismo relleno del panel y el mismo espaciado entre indicadores en la barra superior principal de GNOME."
+msgstr "Use the same panel height, panel padding, and indicator spacing on the primary GNOME top bar."
 
 msgid "Top Bar"
-msgstr "Barra superior"
+msgstr "Top Bar"
 
 msgid "No Notifications"
-msgstr "Sin notificaciones"
+msgstr "No Notifications"
 
 msgid "%OB"
 msgstr "%OB"
@@ -156,7 +156,7 @@ msgid "%OB %Y"
 msgstr "%OB %Y"
 
 msgid "Do Not Disturb"
-msgstr "No molestar"
+msgstr "Do Not Disturb"
 
 msgid "Clear"
-msgstr "Borrar"
+msgstr "Clear"

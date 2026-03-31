@@ -1,94 +1,162 @@
-# SOME DESCRIPTIVE TITLE.
-# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
-# This file is distributed under the same license as the PACKAGE package.
-# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
-#
 msgid ""
 msgstr ""
-"Project-Id-Version: \n"
-"Report-Msgid-Bugs-To: https://github.com/inasis/multi-panel"
-"issues\n"
-"POT-Creation-Date: 2019-10-04 04:44-0300\n"
-"PO-Revision-Date: 2016-12-29 14:25+0100\n"
-"Last-Translator: \n"
-"Language-Team: \n"
-"Language: pl_PL\n"
+"Project-Id-Version: Multi Panel\n"
+"Report-Msgid-Bugs-To: https://github.com/inasis/multi-panel/issues\n"
+"POT-Creation-Date: 2026-03-31 20:10+0900\n"
+"PO-Revision-Date: 2026-03-31 20:10+0900\n"
+"Last-Translator: inasis <inasis@mail.com>\n"
+"Language-Team: Polish\n"
+"Language: pl\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"X-Generator: Poedit 1.8.11\n"
-"Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 "
-"|| n%100>=20) ? 1 : 2);\n"
 
-#: indicator.js:46
-msgid "Preferences"
+msgid "Application Menu"
+msgstr "Menu aplikacji"
+
+msgid "Activities"
+msgstr "Aktywności"
+
+msgid "Accessbility"
+msgstr "Dostępność"
+
+msgid "Keyboard"
+msgstr "Klawiatura"
+
+msgid "Screen Sharing"
+msgstr "Udostępnianie ekranu"
+
+msgid "Screen Recording"
+msgstr "Nagrywanie ekranu"
+
+msgid "Quick Settings"
+msgstr "Szybkie ustawienia"
+
+msgid "Date and Clock"
+msgstr "Data i zegar"
+
+msgid "Settings"
 msgstr "Ustawienia"
 
-#: indicator.js:115
-msgid "Multi Monitors Add-On"
-msgstr "Multi Monitors Add-On"
+msgid "Show bar on additional monitors"
+msgstr "Pokaż pasek na dodatkowych monitorach"
 
-#: mmoverview.js:642
-msgid "Overview"
-msgstr ""
+msgid "General"
+msgstr "Ogólne"
 
-#. Translators: If there is no suitable word for "Activities"
-#. in your language, you can use the word for "Overview".
-#: mmpanel.js:333
-msgid "Activities"
-msgstr ""
+msgid "General behavior for additional monitors and desktop integration."
+msgstr "Ogólne zachowanie dodatkowych monitorów i integracji z pulpitem."
 
-#: mmpanel.js:414
-msgid "Top Bar"
-msgstr ""
+msgid "Enable hot corners"
+msgstr "Włącz aktywne rogi"
 
-#: prefs.js:62
-msgid "Show Multi Monitors indicator on Top Panel."
-msgstr "Wyświetl wskaźnik rozszerzenia na głównym pasku."
+msgid "Show screenshot tools on all monitors"
+msgstr "Pokaż narzędzia zrzutu ekranu na wszystkich monitorach"
 
-#: prefs.js:63
-msgid "Show Panel on additional monitors."
-msgstr "Wyświetl główny pasek na dodatkowych monitorach."
+msgid "Indicators"
+msgstr "Wskaźniki"
 
-#: prefs.js:64
-msgid "Show Thumbnails-Slider on additional monitors."
-msgstr "Wyświetl pasek miniatur na dodatkowych monitorach."
+msgid "Reorder indicators, choose their group, and show or hide them on additional monitors."
+msgstr "Zmień kolejność wskaźników, wybierz ich grupę oraz pokaż lub ukryj je na dodatkowych monitorach."
 
-#: prefs.js:65
-msgid "Show Activities-Button on additional monitors."
-msgstr "Wyświetl przycisk podglądu na dodatkowych monitorach."
+msgid "Transferred Indicators"
+msgstr "Przeniesione wskaźniki"
 
-#: prefs.js:66
-msgid "Show AppMenu-Button on additional monitors."
-msgstr "Wyświetl przycisk aplikacji na dodatkowych monitorach."
+msgid "Move stable indicators away from the primary bar to a specific monitor."
+msgstr "Przenieś stałe wskaźniki z głównego paska na wybrany monitor."
 
-#: prefs.js:67
-msgid "Show DateTime-Button on additional monitors."
-msgstr "Wyświetl przycisk daty i czasu na dodatkowych monitorach."
+msgid "Indicators transferred to additional monitors"
+msgstr "Wskaźniki przeniesione na dodatkowe monitory"
 
-#: prefs.js:71
-msgid "Enable hot corners."
-msgstr "Włączenie podglądu po najechaniu rogu ekranu."
+msgid "Add indicator"
+msgstr "Dodaj wskaźnik"
 
-#: prefs.js:77
-msgid "A list of indicators for transfer to additional monitors."
-msgstr "Lista wskaźników do przesunięcia na dodatkowe monitory."
+msgid "Remove indicator"
+msgstr "Usuń wskaźnik"
 
-#: prefs.js:124
+msgid "Left"
+msgstr "Lewo"
+
+msgid "Center"
+msgstr "Środek"
+
+msgid "Right"
+msgstr "Prawo"
+
+msgid "Choose where this indicator should appear"
+msgstr "Wybierz, gdzie ten wskaźnik ma się pojawić"
+
+msgid "Show or hide this indicator on Multi Monitor Bar"
+msgstr "Pokaż lub ukryj ten wskaźnik na pasku Multi Monitor Bar"
+
 msgid "Select indicator"
 msgstr "Wybierz wskaźnik"
 
-#: prefs.js:127
+msgid "Cancel"
+msgstr "Anuluj"
+
 msgid "Add"
 msgstr "Dodaj"
 
-#: prefs.js:141
 msgid "Indicators on Top Panel"
-msgstr "Wskaźniki na głównym panelu"
+msgstr "Wskaźniki na górnym pasku"
 
-#: prefs.js:170
 msgid "Monitor index:"
 msgstr "Indeks monitora:"
 
-#~ msgid "Test"
-#~ msgstr "Test"
+msgid "Layout"
+msgstr "Układ"
+
+msgid "Adjust internal left and right padding for each indicator on additional monitor bars."
+msgstr "Dostosuj wewnętrzne lewe i prawe wypełnienie dla każdego wskaźnika na paskach dodatkowych monitorów."
+
+msgid "Indicator Padding"
+msgstr "Wypełnienie wskaźnika"
+
+msgid "Adjust internal left and right padding for each indicator."
+msgstr "Dostosuj wewnętrzne lewe i prawe wypełnienie dla każdego wskaźnika."
+
+msgid "Quick Settings gap"
+msgstr "Odstęp szybkich ustawień"
+
+msgid "Indicator gap"
+msgstr "Odstęp wskaźników"
+
+msgid "Panel Layout"
+msgstr "Układ panelu"
+
+msgid "Adjust panel left and right padding and height."
+msgstr "Dostosuj lewe i prawe wypełnienie oraz wysokość panelu."
+
+msgid "Panel left padding"
+msgstr "Lewe wypełnienie panelu"
+
+msgid "Panel right padding"
+msgstr "Prawe wypełnienie panelu"
+
+msgid "Panel height"
+msgstr "Wysokość panelu"
+
+msgid "Apply to main panel"
+msgstr "Zastosuj do panelu głównego"
+
+msgid "Use the same panel height, panel padding, and indicator spacing on the primary GNOME top bar."
+msgstr "Użyj tej samej wysokości panelu, tego samego wypełnienia panelu i tych samych odstępów między wskaźnikami na głównym górnym pasku GNOME."
+
+msgid "Top Bar"
+msgstr "Górny pasek"
+
+msgid "No Notifications"
+msgstr "Brak powiadomień"
+
+msgid "%OB"
+msgstr "%OB"
+
+msgid "%OB %Y"
+msgstr "%OB %Y"
+
+msgid "Do Not Disturb"
+msgstr "Nie przeszkadzać"
+
+msgid "Clear"
+msgstr "Wyczyść"

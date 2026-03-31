@@ -1,0 +1,162 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Multi Panel\n"
+"Report-Msgid-Bugs-To: https://github.com/inasis/multi-panel/issues\n"
+"POT-Creation-Date: 2026-03-31 20:10+0900\n"
+"PO-Revision-Date: 2026-03-31 20:10+0900\n"
+"Last-Translator: inasis <inasis@mail.com>\n"
+"Language-Team: Japanese\n"
+"Language: ja\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Application Menu"
+msgstr "アプリケーションメニュー"
+
+msgid "Activities"
+msgstr "アクティビティ"
+
+msgid "Accessbility"
+msgstr "アクセシビリティ"
+
+msgid "Keyboard"
+msgstr "キーボード"
+
+msgid "Screen Sharing"
+msgstr "画面共有"
+
+msgid "Screen Recording"
+msgstr "画面録画"
+
+msgid "Quick Settings"
+msgstr "クイック設定"
+
+msgid "Date and Clock"
+msgstr "日付と時計"
+
+msgid "Settings"
+msgstr "設定"
+
+msgid "Show bar on additional monitors"
+msgstr "追加モニターにバーを表示"
+
+msgid "General"
+msgstr "一般"
+
+msgid "General behavior for additional monitors and desktop integration."
+msgstr "追加モニターとデスクトップ統合に関する一般設定です。"
+
+msgid "Enable hot corners"
+msgstr "ホットコーナーを有効にする"
+
+msgid "Show screenshot tools on all monitors"
+msgstr "すべてのモニターにスクリーンショットツールを表示"
+
+msgid "Indicators"
+msgstr "インジケーター"
+
+msgid "Reorder indicators, choose their group, and show or hide them on additional monitors."
+msgstr "インジケーターの順序変更、グループ選択、追加モニターでの表示切替を行います。"
+
+msgid "Transferred Indicators"
+msgstr "移動されたインジケーター"
+
+msgid "Move stable indicators away from the primary bar to a specific monitor."
+msgstr "安定したインジケーターをメインバーから特定のモニターへ移動します。"
+
+msgid "Indicators transferred to additional monitors"
+msgstr "追加モニターへ移動されたインジケーター"
+
+msgid "Add indicator"
+msgstr "インジケーターを追加"
+
+msgid "Remove indicator"
+msgstr "インジケーターを削除"
+
+msgid "Left"
+msgstr "左"
+
+msgid "Center"
+msgstr "中央"
+
+msgid "Right"
+msgstr "右"
+
+msgid "Choose where this indicator should appear"
+msgstr "このインジケーターを表示する場所を選択します"
+
+msgid "Show or hide this indicator on Multi Monitor Bar"
+msgstr "Multi Monitor Bar でこのインジケーターを表示または非表示にします"
+
+msgid "Select indicator"
+msgstr "インジケーターを選択"
+
+msgid "Cancel"
+msgstr "キャンセル"
+
+msgid "Add"
+msgstr "追加"
+
+msgid "Indicators on Top Panel"
+msgstr "トップパネル上のインジケーター"
+
+msgid "Monitor index:"
+msgstr "モニター番号:"
+
+msgid "Layout"
+msgstr "レイアウト"
+
+msgid "Adjust internal left and right padding for each indicator on additional monitor bars."
+msgstr "追加モニターバー上の各インジケーターの左右内部パディングを調整します。"
+
+msgid "Indicator Padding"
+msgstr "インジケーターパディング"
+
+msgid "Adjust internal left and right padding for each indicator."
+msgstr "各インジケーターの左右内部パディングを調整します。"
+
+msgid "Quick Settings gap"
+msgstr "クイック設定の間隔"
+
+msgid "Indicator gap"
+msgstr "インジケーター間隔"
+
+msgid "Panel Layout"
+msgstr "パネルレイアウト"
+
+msgid "Adjust panel left and right padding and height."
+msgstr "パネルの左右パディングと高さを調整します。"
+
+msgid "Panel left padding"
+msgstr "パネル左パディング"
+
+msgid "Panel right padding"
+msgstr "パネル右パディング"
+
+msgid "Panel height"
+msgstr "パネルの高さ"
+
+msgid "Apply to main panel"
+msgstr "メインパネルにも適用"
+
+msgid "Use the same panel height, panel padding, and indicator spacing on the primary GNOME top bar."
+msgstr "GNOME のメイントップバーにも同じパネル高さ、パネルパディング、インジケーター間隔を適用します。"
+
+msgid "Top Bar"
+msgstr "トップバー"
+
+msgid "No Notifications"
+msgstr "通知なし"
+
+msgid "%OB"
+msgstr "%OB"
+
+msgid "%OB %Y"
+msgstr "%OB %Y"
+
+msgid "Do Not Disturb"
+msgstr "通知をオフ"
+
+msgid "Clear"
+msgstr "クリア"

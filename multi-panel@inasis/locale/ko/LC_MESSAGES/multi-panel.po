@@ -5,149 +5,149 @@ msgstr ""
 "POT-Creation-Date: 2026-03-31 20:10+0900\n"
 "PO-Revision-Date: 2026-03-31 20:10+0900\n"
 "Last-Translator: inasis <inasis@mail.com>\n"
-"Language-Team: Spanish\n"
-"Language: es\n"
+"Language-Team: Korean\n"
+"Language: ko\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
 msgid "Application Menu"
-msgstr "Menú de aplicaciones"
+msgstr "응용 프로그램 메뉴"
 
 msgid "Activities"
-msgstr "Actividades"
+msgstr "활동"
 
 msgid "Accessbility"
-msgstr "Accesibilidad"
+msgstr "접근성"
 
 msgid "Keyboard"
-msgstr "Teclado"
+msgstr "키보드"
 
 msgid "Screen Sharing"
-msgstr "Compartir pantalla"
+msgstr "화면 공유"
 
 msgid "Screen Recording"
-msgstr "Grabación de pantalla"
+msgstr "화면 녹화"
 
 msgid "Quick Settings"
-msgstr "Ajustes rápidos"
+msgstr "빠른 설정"
 
 msgid "Date and Clock"
-msgstr "Fecha y reloj"
+msgstr "날짜 및 시계"
 
 msgid "Settings"
-msgstr "Configuración"
+msgstr "설정"
 
 msgid "Show bar on additional monitors"
-msgstr "Mostrar la barra en monitores adicionales"
+msgstr "추가 모니터에 바 표시"
 
 msgid "General"
-msgstr "General"
+msgstr "일반"
 
 msgid "General behavior for additional monitors and desktop integration."
-msgstr "Comportamiento general de los monitores adicionales y la integración con el escritorio."
+msgstr "추가 모니터 및 데스크톱 통합에 대한 일반 동작입니다."
 
 msgid "Enable hot corners"
-msgstr "Activar esquinas activas"
+msgstr "핫 코너 활성화"
 
 msgid "Show screenshot tools on all monitors"
-msgstr "Mostrar herramientas de captura en todos los monitores"
+msgstr "모든 모니터에 스크린샷 도구 표시"
 
 msgid "Indicators"
-msgstr "Indicadores"
+msgstr "인디케이터"
 
 msgid "Reorder indicators, choose their group, and show or hide them on additional monitors."
-msgstr "Reordena los indicadores, elige su grupo y muéstralos u ocúltalos en los monitores adicionales."
+msgstr "추가 모니터에서 인디케이터 순서를 바꾸고, 그룹을 선택하고, 표시 여부를 설정합니다."
 
 msgid "Transferred Indicators"
-msgstr "Indicadores transferidos"
+msgstr "이동된 인디케이터"
 
 msgid "Move stable indicators away from the primary bar to a specific monitor."
-msgstr "Mueve los indicadores estables de la barra principal a un monitor específico."
+msgstr "기본 바의 고정 인디케이터를 특정 모니터로 이동합니다."
 
 msgid "Indicators transferred to additional monitors"
-msgstr "Indicadores transferidos a monitores adicionales"
+msgstr "추가 모니터로 이동된 인디케이터"
 
 msgid "Add indicator"
-msgstr "Añadir indicador"
+msgstr "인디케이터 추가"
 
 msgid "Remove indicator"
-msgstr "Eliminar indicador"
+msgstr "인디케이터 제거"
 
 msgid "Left"
-msgstr "Izquierda"
+msgstr "왼쪽"
 
 msgid "Center"
-msgstr "Centro"
+msgstr "가운데"
 
 msgid "Right"
-msgstr "Derecha"
+msgstr "오른쪽"
 
 msgid "Choose where this indicator should appear"
-msgstr "Elige dónde debe aparecer este indicador"
+msgstr "이 인디케이터를 표시할 위치를 선택합니다"
 
 msgid "Show or hide this indicator on Multi Monitor Bar"
-msgstr "Mostrar u ocultar este indicador en Multi Monitor Bar"
+msgstr "Multi Monitor Bar에서 이 인디케이터를 표시하거나 숨깁니다"
 
 msgid "Select indicator"
-msgstr "Seleccionar indicador"
+msgstr "인디케이터 선택"
 
 msgid "Cancel"
-msgstr "Cancelar"
+msgstr "취소"
 
 msgid "Add"
-msgstr "Añadir"
+msgstr "추가"
 
 msgid "Indicators on Top Panel"
-msgstr "Indicadores en la barra superior"
+msgstr "상단 패널의 인디케이터"
 
 msgid "Monitor index:"
-msgstr "Índice del monitor:"
+msgstr "모니터 인덱스:"
 
 msgid "Layout"
-msgstr "Diseño"
+msgstr "레이아웃"
 
 msgid "Adjust internal left and right padding for each indicator on additional monitor bars."
-msgstr "Ajusta el relleno interno izquierdo y derecho de cada indicador en las barras de monitores adicionales."
+msgstr "추가 모니터 바의 각 인디케이터 내부 좌우 패딩을 조정합니다."
 
 msgid "Indicator Padding"
-msgstr "Relleno del indicador"
+msgstr "인디케이터 패딩"
 
 msgid "Adjust internal left and right padding for each indicator."
-msgstr "Ajusta el relleno interno izquierdo y derecho de cada indicador."
+msgstr "각 인디케이터의 내부 좌우 패딩을 조정합니다."
 
 msgid "Quick Settings gap"
-msgstr "Espaciado de ajustes rápidos"
+msgstr "빠른 설정 간격"
 
 msgid "Indicator gap"
-msgstr "Espaciado entre indicadores"
+msgstr "인디케이터 간격"
 
 msgid "Panel Layout"
-msgstr "Diseño del panel"
+msgstr "패널 레이아웃"
 
 msgid "Adjust panel left and right padding and height."
-msgstr "Ajusta el relleno izquierdo y derecho y la altura del panel."
+msgstr "패널의 좌우 패딩과 높이를 조정합니다."
 
 msgid "Panel left padding"
-msgstr "Relleno izquierdo del panel"
+msgstr "패널 왼쪽 패딩"
 
 msgid "Panel right padding"
-msgstr "Relleno derecho del panel"
+msgstr "패널 오른쪽 패딩"
 
 msgid "Panel height"
-msgstr "Altura del panel"
+msgstr "패널 높이"
 
 msgid "Apply to main panel"
-msgstr "Aplicar al panel principal"
+msgstr "메인 패널에도 적용"
 
 msgid "Use the same panel height, panel padding, and indicator spacing on the primary GNOME top bar."
-msgstr "Usar la misma altura del panel, el mismo relleno del panel y el mismo espaciado entre indicadores en la barra superior principal de GNOME."
+msgstr "기본 GNOME 상단 바에도 같은 패널 높이, 패널 패딩, 인디케이터 간격을 적용합니다."
 
 msgid "Top Bar"
-msgstr "Barra superior"
+msgstr "상단 바"
 
 msgid "No Notifications"
-msgstr "Sin notificaciones"
+msgstr "알림 없음"
 
 msgid "%OB"
 msgstr "%OB"
@@ -156,7 +156,7 @@ msgid "%OB %Y"
 msgstr "%OB %Y"
 
 msgid "Do Not Disturb"
-msgstr "No molestar"
+msgstr "방해 금지"
 
 msgid "Clear"
-msgstr "Borrar"
+msgstr "지우기"

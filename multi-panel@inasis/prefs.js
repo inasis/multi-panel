@@ -1198,7 +1198,7 @@ class IndicatorPaddingPrefsWidget extends Adw.PreferencesGroup {
 
         const panelSection = new Adw.ExpanderRow({
             title: _('Panel Layout'),
-            subtitle: _('Adjust auxiliary panel padding and height. These settings also affect the main panel when layout syncing is enabled.'),
+            subtitle: _('Adjust panel left and right padding and height.'),
             expanded: false,
             activatable: false,
         });
