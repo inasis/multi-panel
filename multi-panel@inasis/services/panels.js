@@ -28,7 +28,7 @@ import {
 	setPanelRegistryRef,
 } from './panelRuntime.js';
 import { AuxiliaryPanel } from '../ui/panel.js';
-import { StatusIndicatorsController } from '../ui/indicators.js';
+import { StatusIndicatorsController } from '../ui/indicatorController.js';
 
 export const SHOW_PANEL_ID = 'show-panel';
 export const ENABLE_HOT_CORNERS = 'enable-hot-corners';

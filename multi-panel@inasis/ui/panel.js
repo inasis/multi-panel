@@ -30,7 +30,7 @@ import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.j
 
 import { MultiPanelAppMenuButton } from './appMenu.js';
 import { installAuxiliaryPanelAppearanceSupport } from './panelAppearance.js';
-import { installAuxiliaryPanelIndicatorSupport } from './panelIndicators.js';
+import { installAuxiliaryPanelIndicatorSupport } from './panelIndicatorLayout.js';
 import * as DateMenuPanel from './dateMenu.js';
 import {
     getActorChildren,
@@ -424,6 +424,56 @@ const AuxiliaryPanel = GObject.registerClass(
                     metaWindow.maximized_vertically &&
                     stageX > rect.x && stageX < rect.x + rect.width;
             });
+        }
+
+        _tryDragWindowViaMainPanel(event) {
+            if (typeof Main.panel?._tryDragWindow !== 'function')
+                return false;
+
+            try {
+                return !!Main.panel._tryDragWindow.call(this, event);
+            } catch (_e) {
+                return false;
+            }
+        }
+
+        _tryDragWindowFallback(event) {
+            if (event?.get_button?.() !== 1)
+                return false;
+
+            const [stageX, stageY] = event.get_coords?.() ?? [0, 0];
+            const draggableWindow = this._getDraggableWindowForPosition(stageX);
+            if (!draggableWindow)
+                return false;
+
+            const beginGrabOp = global.display?.begin_grab_op;
+            const grabOp = Meta.GrabOp?.MOVING ?? Meta.GrabOp?.MOVE ?? null;
+            if (typeof beginGrabOp !== 'function' || grabOp === null)
+                return false;
+
+            try {
+                return !!beginGrabOp.call(
+                    global.display,
+                    draggableWindow,
+                    grabOp,
+                    true,
+                    false,
+                    event.get_button?.() ?? 1,
+                    event.get_state?.() ?? 0,
+                    event.get_time?.() ?? 0,
+                    stageX,
+                    stageY
+                );
+            } catch (_e) {
+                return false;
+            }
+        }
+
+        vfunc_button_press_event(event) {
+            if (this._tryDragWindowViaMainPanel(event) || this._tryDragWindowFallback(event))
+                return Clutter.EVENT_STOP;
+
+            return Clutter.EVENT_PROPAGATE;
         }
     });
 

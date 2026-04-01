@@ -193,31 +193,86 @@ export class StatusIndicatorsController {
         const leftPadding = PanelSettings.getPanelLeftPadding(this._settings);
         const rightPadding = PanelSettings.getPanelRightPadding(this._settings);
         const height = PanelSettings.getPanelHeight(this._settings);
+        const panelContainer = Main.panel._boxContainer ?? null;
+        const leftBox = Main.panel._leftBox ?? null;
+        const rightBox = Main.panel._rightBox ?? null;
+        const panelBox = Main.layoutManager.panelBox ?? null;
 
-        PanelSettings.applyHorizontalPaddingStyle(
-            Main.panel,
-            '_multiPanelLayoutBaseStyle',
-            leftPadding,
-            rightPadding
-        );
+        // Clear previous strategy to avoid stale padding rules across versions.
+        PanelSettings.restoreManagedStyle(Main.panel, '_multiPanelLayoutBaseStyle');
+        if (panelContainer && panelContainer !== Main.panel)
+            PanelSettings.restoreManagedStyle(panelContainer, '_multiPanelLayoutBaseStyle');
+
+        // Apply to left/right box directly for GNOME 46+ reliability.
+        PanelSettings.applyManagedStyle(leftBox, '_multiPanelLeftBoxBaseStyle', baseStyle => {
+            const rule = `padding-left: ${leftPadding}px;`;
+            return `${baseStyle}${baseStyle && rule ? ' ' : ''}${rule}`.trim();
+        });
+        PanelSettings.applyManagedStyle(rightBox, '_multiPanelRightBoxBaseStyle', baseStyle => {
+            const rule = `padding-right: ${rightPadding}px;`;
+            return `${baseStyle}${baseStyle && rule ? ' ' : ''}${rule}`.trim();
+        });
         PanelSettings.applyManagedStyle(
-            Main.layoutManager.panelBox,
+            panelBox,
             '_multiPanelHeightBaseStyle',
             baseStyle => {
-                const heightStyle = height > 0 ? `height: ${height}px;` : '';
+                const heightStyle = height > 0
+                    ? `height: ${height}px; min-height: ${height}px; max-height: ${height}px;`
+                    : '';
                 return `${baseStyle}${baseStyle && heightStyle ? ' ' : ''}${heightStyle}`.trim();
             }
         );
-        Main.layoutManager.panelBox.set_height(height > 0 ? height : -1);
-        Main.layoutManager.panelBox.queue_relayout?.();
+
+        PanelSettings.applyManagedStyle(
+            Main.panel,
+            '_multiPanelMainPanelHeightBaseStyle',
+            baseStyle => {
+                const heightStyle = height > 0
+                    ? `height: ${height}px; min-height: ${height}px; max-height: ${height}px;`
+                    : '';
+                return `${baseStyle}${baseStyle && heightStyle ? ' ' : ''}${heightStyle}`.trim();
+            }
+        );
+
+        if (panelContainer && panelContainer !== Main.panel) {
+            PanelSettings.applyManagedStyle(
+                panelContainer,
+                '_multiPanelContainerHeightBaseStyle',
+                baseStyle => {
+                    const heightStyle = height > 0
+                        ? `height: ${height}px; min-height: ${height}px; max-height: ${height}px;`
+                        : '';
+                    return `${baseStyle}${baseStyle && heightStyle ? ' ' : ''}${heightStyle}`.trim();
+                }
+            );
+        }
+
+        panelBox?.set_height(height > 0 ? height : -1);
+        Main.panel.set_height(height > 0 ? height : -1);
+        panelContainer?.set_height?.(height > 0 ? height : -1);
+
+        panelBox?.queue_relayout?.();
+        panelContainer?.queue_relayout?.();
         Main.panel.queue_relayout?.();
     }
 
     _restoreMainPanelPanelLayout() {
         PanelSettings.restoreManagedStyle(Main.panel, '_multiPanelLayoutBaseStyle');
+        if (Main.panel._boxContainer && Main.panel._boxContainer !== Main.panel)
+            PanelSettings.restoreManagedStyle(Main.panel._boxContainer, '_multiPanelLayoutBaseStyle');
+        PanelSettings.restoreManagedStyle(Main.panel._leftBox, '_multiPanelLeftBoxBaseStyle');
+        PanelSettings.restoreManagedStyle(Main.panel._rightBox, '_multiPanelRightBoxBaseStyle');
         PanelSettings.restoreManagedStyle(Main.layoutManager.panelBox, '_multiPanelHeightBaseStyle');
+        PanelSettings.restoreManagedStyle(Main.panel, '_multiPanelMainPanelHeightBaseStyle');
+        if (Main.panel._boxContainer && Main.panel._boxContainer !== Main.panel)
+            PanelSettings.restoreManagedStyle(Main.panel._boxContainer, '_multiPanelContainerHeightBaseStyle');
+
         Main.layoutManager.panelBox.set_height(-1);
+        Main.panel.set_height(-1);
+        Main.panel._boxContainer?.set_height?.(-1);
+
         Main.layoutManager.panelBox.queue_relayout?.();
+        Main.panel._boxContainer?.queue_relayout?.();
         Main.panel.queue_relayout?.();
     }
 
