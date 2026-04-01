@@ -17,7 +17,6 @@ along with this program; if not, visit https://www.gnu.org/licenses/.
 */
 
 import GLib from 'gi://GLib';
-import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {
     applyGapStyle,
     applyHorizontalPaddingStyle,
@@ -70,20 +69,17 @@ const TRANSIENT_ROLE_PATTERNS = [
     /^org\/ayatana\/NotificationItem/i,
 ];
 
-// Store reference to mmPanel array set by extension.js
-let _mmPanelArrayRef = null;
+// Store reference to auxiliary panels set by extension.js
+let _panelRegistryRef = null;
 
-// Helper function to set the mmPanel reference
-export function setMMPanelArrayRef(mmPanelArray) {
-    _mmPanelArrayRef = mmPanelArray;
+// Helper function to set the panel registry reference
+export function setPanelRegistryRef(panelRegistry) {
+    _panelRegistryRef = panelRegistry;
 }
 
-// Helper function to safely access mmPanel array
-export function getMMPanelArray() {
-    if ('mmPanel' in Main && Main.mmPanel)
-        return Main.mmPanel;
-
-    return _mmPanelArrayRef;
+// Helper function to safely access panel registry
+export function getPanelRegistry() {
+    return _panelRegistryRef;
 }
 
 export function getIndicatorOrder(settings) {

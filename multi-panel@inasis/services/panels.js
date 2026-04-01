@@ -21,27 +21,26 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as Layout from 'resource:///org/gnome/shell/ui/layout.js';
 
 import * as PanelSettings from './settings.js';
-import { MultiMonitorsPanelBox } from './panelBox.js';
+import { AuxiliaryPanelBox } from './panelBox.js';
 import {
-	getMMPanelArray,
+	getPanelRegistry,
 	getMonitorId,
-	setMMPanelArrayRef,
+	setPanelRegistryRef,
 } from './panelRuntime.js';
-import { MultiMonitorsPanel } from '../ui/panel.js';
+import { AuxiliaryPanel } from '../ui/panel.js';
 import { StatusIndicatorsController } from '../ui/indicators.js';
 
 export const SHOW_PANEL_ID = 'show-panel';
 export const ENABLE_HOT_CORNERS = 'enable-hot-corners';
-export { setMMPanelArrayRef };
+export { setPanelRegistryRef };
 
-export class MultiMonitorsLayoutManager {
+export class AuxiliaryPanelLayoutManager {
 	constructor(settings) {
 		this._settings = settings;
 		this._desktopSettings = new Gio.Settings({ schema_id: 'org.gnome.desktop.interface' });
 
 		this._monitorIds = [];
-		this.mmPanelBox = [];
-		this.mmappMenu = false;
+		this._panelBoxes = [];
 
 		this._showAppMenuId = null;
 		this._monitorsChangedId = null;
@@ -189,7 +188,7 @@ export class MultiMonitorsLayoutManager {
 				transferIndicators = true;
 			} else if (this._monitorIds[panelIndex] !== monitorId) {
 				this._monitorIds[panelIndex] = monitorId;
-				this.mmPanelBox[panelIndex].updatePanel(monitor);
+				this._panelBoxes[panelIndex].updatePanel(monitor);
 			}
 
 			panelIndex++;
@@ -206,25 +205,25 @@ export class MultiMonitorsLayoutManager {
 			return;
 		}
 
-		let mmPanelBox = new MultiMonitorsPanelBox(monitor, this._settings);
-		let panel = new MultiMonitorsPanel(i, mmPanelBox, this._settings);
+		let panelBox = new AuxiliaryPanelBox(monitor, this._settings);
+		let panel = new AuxiliaryPanel(i, panelBox, this._settings);
 
-		const mmPanelRef = getMMPanelArray();
-		if (mmPanelRef) {
-			mmPanelRef.push(panel);
+		const panelRegistry = getPanelRegistry();
+		if (panelRegistry) {
+			panelRegistry.push(panel);
 		}
-		this.mmPanelBox.push(mmPanelBox);
+		this._panelBoxes.push(panelBox);
 	}
 
 	_popPanel() {
-		const mmPanelRef = getMMPanelArray();
-		let panel = mmPanelRef ? mmPanelRef.pop() : null;
+		const panelRegistry = getPanelRegistry();
+		let panel = panelRegistry ? panelRegistry.pop() : null;
 		if (panel && this.statusIndicatorsController) {
 			this.statusIndicatorsController.transferBack(panel);
 		}
-		let mmPanelBox = this.mmPanelBox.pop();
-		if (mmPanelBox) {
-			mmPanelBox.destroy();
+		let panelBox = this._panelBoxes.pop();
+		if (panelBox) {
+			panelBox.destroy();
 		}
 	}
 
@@ -239,8 +238,8 @@ export class MultiMonitorsLayoutManager {
 	_syncExternalPanelHeights() {
 		this._forEachExternalMonitor((monitor, index) => {
 			const panelIndex = index > Main.layoutManager.primaryIndex ? index - 1 : index;
-			this.mmPanelBox[panelIndex]?.updatePanel?.(monitor);
-			const panel = getMMPanelArray()?.find(candidate => candidate.monitorIndex === index);
+			this._panelBoxes[panelIndex]?.updatePanel?.(monitor);
+			const panel = getPanelRegistry()?.find(candidate => candidate.monitorIndex === index);
 			panel?._syncPanelAppearance?.();
 			panel?.queue_relayout?.();
 		});

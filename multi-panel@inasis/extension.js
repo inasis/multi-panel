@@ -31,8 +31,8 @@ export const shellVersion = Common.shellVersion;
 export const patchAddActorMethod = Common.patchAddActorMethod;
 export const copyClass = Common.copyClass;
 
-export let mmPanel = [];
-export let mmLayoutManager = null;
+export let auxiliaryPanels = [];
+export let auxiliaryLayoutManager = null;
 
 function patchMainPanelEnsureIndicator() {
 	Main.panel._ensureIndicator = function (role) {
@@ -52,7 +52,7 @@ function patchMainPanelEnsureIndicator() {
 	};
 }
 
-export default class MultiMonitorsExtension extends Extension {
+export default class MultiPanelExtension extends Extension {
 	constructor(metadata) {
 		super(metadata);
 		this._settings = null;
@@ -62,14 +62,14 @@ export default class MultiMonitorsExtension extends Extension {
 	enable() {
         this._settings = this.getSettings();
 
-        mmLayoutManager = new AuxiliaryPanelManager.MultiMonitorsLayoutManager(this._settings);
+        auxiliaryLayoutManager = new AuxiliaryPanelManager.AuxiliaryPanelLayoutManager(this._settings);
 
-        this._showPanelId = this._settings.connect('changed::' + AuxiliaryPanelManager.SHOW_PANEL_ID, mmLayoutManager.showPanel.bind(mmLayoutManager));
-        mmLayoutManager.showPanel();
+        this._showPanelId = this._settings.connect('changed::' + AuxiliaryPanelManager.SHOW_PANEL_ID, auxiliaryLayoutManager.showPanel.bind(auxiliaryLayoutManager));
+        auxiliaryLayoutManager.showPanel();
 
-        mmPanel.length = 0;
-        AuxiliaryPanelManager.setMMPanelArrayRef(mmPanel);
-        PanelSettings.setMMPanelArrayRef(mmPanel);
+        auxiliaryPanels.length = 0;
+        AuxiliaryPanelManager.setPanelRegistryRef(auxiliaryPanels);
+        PanelSettings.setPanelRegistryRef(auxiliaryPanels);
 
 		patchMainPanelEnsureIndicator();
 
@@ -86,12 +86,12 @@ export default class MultiMonitorsExtension extends Extension {
 			this._showPanelId = null;
 		}
 
-		if (mmLayoutManager) {
-			mmLayoutManager.hidePanel();
-			mmLayoutManager = null;
+		if (auxiliaryLayoutManager) {
+			auxiliaryLayoutManager.hidePanel();
+			auxiliaryLayoutManager = null;
 		}
 
-		mmPanel.length = 0;
+		auxiliaryPanels.length = 0;
 
 		this._settings = null;
 	}

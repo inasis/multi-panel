@@ -138,7 +138,7 @@ const appearanceSupportMethods = {
             const appliedActors = panelBlur.actors_list?.find(entry => entry?.widgets?.panel === this);
             this._blurMyShellApplied = !!appliedActors;
         } catch (e) {
-            console.debug('[MultiMonitors] Blur my Shell compatibility failed:', String(e));
+            console.debug('[MultiPanel] Blur my Shell compatibility failed:', String(e));
         }
     },
 

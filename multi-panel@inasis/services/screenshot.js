@@ -231,7 +231,7 @@ function _createToolbarClonesForAllMonitors() {
     ].filter(e => e != null);
 
     if (interactiveElements.length === 0) {
-        console.debug('[MultiMonitors] No screenshot UI elements found to clone');
+        console.debug('[MultiPanel] No screenshot UI elements found to clone');
         return;
     }
 
@@ -257,7 +257,7 @@ function _createToolbarClonesForAllMonitors() {
     // Calculate bottom margin from primary monitor to preserve vertical spacing
     const marginBottom = (primaryMonitor.y + primaryMonitor.height) - maxY;
 
-    console.debug('[MultiMonitors] Toolbar bounds: x=' + minX + ', y=' + minY + ', w=' + toolbarWidth + ', h=' + toolbarHeight + ', bottomMargin=' + marginBottom);
+    console.debug('[MultiPanel] Toolbar bounds: x=' + minX + ', y=' + minY + ', w=' + toolbarWidth + ', h=' + toolbarHeight + ', bottomMargin=' + marginBottom);
 
     // Create clones for each non-primary monitor
     for (let monitorIdx = 0; monitorIdx < monitors.length; monitorIdx++) {
@@ -370,7 +370,7 @@ function _createToolbarClonesForAllMonitors() {
             const targetX = Math.round(stageX - offsetX);
             const targetY = Math.round(stageY - offsetY);
 
-            console.debug('[MultiMonitors] Overlay click at (' + stageX + ',' + stageY + ') -> finding button at (' + targetX + ',' + targetY + ')');
+            console.debug('[MultiPanel] Overlay click at (' + stageX + ',' + stageY + ') -> finding button at (' + targetX + ',' + targetY + ')');
 
             // Find the actor at target position on original toolbar
             const targetActor = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, targetX, targetY);

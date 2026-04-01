@@ -24,8 +24,8 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as Panel from 'resource:///org/gnome/shell/ui/panel.js';
 
-export const MultiMonitorsAppMenuButton = GObject.registerClass(
-    class MultiMonitorsAppMenuButton extends PanelMenu.Button {
+export const MultiPanelAppMenuButton = GObject.registerClass(
+    class MultiPanelAppMenuButton extends PanelMenu.Button {
         _init(panel) {
             if (panel.monitorIndex == undefined)
                 this._monitorIndex = Main.layoutManager.primaryIndex;

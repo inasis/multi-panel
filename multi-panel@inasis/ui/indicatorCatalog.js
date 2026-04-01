@@ -26,7 +26,7 @@ import * as PanelSettings from '../services/settings.js';
 const catalogSupportMethods = {
     _updateSessionIndicators() {
         const sessionIndicators = [];
-        sessionIndicators.push('MultiMonitorsAddOn');
+        sessionIndicators.push('MultiPanel');
 
         const sessionPanel = Main.sessionMode.panel;
         for (const sessionBox in sessionPanel) {

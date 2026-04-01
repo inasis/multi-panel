@@ -8,19 +8,14 @@ as published by the Free Software Foundation; either version 2
 of the License, or (at your option) any later version.
 */
 
-import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+let _panelRegistryRef = null;
 
-let _mmPanelArrayRef = null;
-
-export function setMMPanelArrayRef(mmPanelArray) {
-    _mmPanelArrayRef = mmPanelArray;
+export function setPanelRegistryRef(panelRegistry) {
+    _panelRegistryRef = panelRegistry;
 }
 
-export function getMMPanelArray() {
-    if ('mmPanel' in Main && Main.mmPanel)
-        return Main.mmPanel;
-
-    return _mmPanelArrayRef;
+export function getPanelRegistry() {
+    return _panelRegistryRef;
 }
 
 export function isDisposedActor(actor) {

@@ -28,7 +28,7 @@ import * as CtrlAltTab from 'resource:///org/gnome/shell/ui/ctrlAltTab.js';
 import * as Layout from 'resource:///org/gnome/shell/ui/layout.js';
 import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
 
-import { MultiMonitorsAppMenuButton } from './appMenu.js';
+import { MultiPanelAppMenuButton } from './appMenu.js';
 import { installAuxiliaryPanelAppearanceSupport } from './panelAppearance.js';
 import { installAuxiliaryPanelIndicatorSupport } from './panelIndicators.js';
 import * as DateMenuPanel from './dateMenu.js';
@@ -57,15 +57,15 @@ export const PANEL_RIGHT_PADDING_ID = PanelSettings.PANEL_RIGHT_PADDING_ID;
 export const PANEL_HEIGHT_ID = PanelSettings.PANEL_HEIGHT_ID;
 export const EXCLUDE_INDICATORS_ID = PanelSettings.EXCLUDE_INDICATORS_ID;
 
-const MULTI_MONITOR_PANEL_ITEM_IMPLEMENTATIONS = {
-    'appMenu': MultiMonitorsAppMenuButton,
+const AUXILIARY_PANEL_ITEM_IMPLEMENTATIONS = {
+    'appMenu': MultiPanelAppMenuButton,
 };
 
-const MultiMonitorsPanel = GObject.registerClass(
-    class MultiMonitorsPanel extends St.Widget {
-        _init(monitorIndex, mmPanelBox, settings) {
-            if (!mmPanelBox)
-                throw new Error('mmPanelBox parameter is required but was undefined');
+const AuxiliaryPanel = GObject.registerClass(
+    class AuxiliaryPanel extends St.Widget {
+        _init(monitorIndex, panelBox, settings) {
+            if (!panelBox)
+                throw new Error('panelBox parameter is required but was undefined');
 
             super._init({
                 name: 'panel',
@@ -79,8 +79,8 @@ const MultiMonitorsPanel = GObject.registerClass(
 
             this.monitorIndex = monitorIndex;
             this._settings = settings;
-            this._panelBoxWrapper = mmPanelBox;
-            this._panelItemImplementations = MULTI_MONITOR_PANEL_ITEM_IMPLEMENTATIONS;
+            this._panelBoxWrapper = panelBox;
+            this._panelItemImplementations = AUXILIARY_PANEL_ITEM_IMPLEMENTATIONS;
             this._mmDisposed = false;
             this._isDestroying = false;
             trackActorDispose(this);
@@ -137,7 +137,7 @@ const MultiMonitorsPanel = GObject.registerClass(
                 this.remove_style_pseudo_class('overview');
             });
 
-            mmPanelBox.panelBox.add_child(this);
+            panelBox.panelBox.add_child(this);
             Main.ctrlAltTabManager.addGroup(this, _("Top Bar"), 'focus-top-bar-symbolic',
                 { sortGroup: CtrlAltTab.SortGroup.TOP });
 
@@ -347,7 +347,7 @@ const MultiMonitorsPanel = GObject.registerClass(
                 role,
                 this._settings.get_boolean(SHOW_APP_MENU_ID),
                 () => {
-                    const indicator = new MultiMonitorsAppMenuButton(this);
+                    const indicator = new MultiPanelAppMenuButton(this);
                     this.statusArea[role] = indicator;
                     return indicator;
                 }
@@ -427,7 +427,7 @@ const MultiMonitorsPanel = GObject.registerClass(
         }
     });
 
-installAuxiliaryPanelAppearanceSupport(MultiMonitorsPanel.prototype);
-installAuxiliaryPanelIndicatorSupport(MultiMonitorsPanel.prototype);
+installAuxiliaryPanelAppearanceSupport(AuxiliaryPanel.prototype);
+installAuxiliaryPanelIndicatorSupport(AuxiliaryPanel.prototype);
 
-export { MultiMonitorsPanel };
+export { AuxiliaryPanel };

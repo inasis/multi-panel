@@ -62,7 +62,7 @@ const indicatorSupportMethods = {
                     this.statusArea[role] = indicator;
                     return indicator;
                 } catch (e) {
-                    console.error('[MultiMonitors] Failed to create mirrored indicator for', role, ':', String(e));
+                    console.error('[MultiPanel] Failed to create mirrored indicator for', role, ':', String(e));
                     return null;
                 }
             }
@@ -72,7 +72,7 @@ const indicatorSupportMethods = {
         try {
             indicator = new constructor(this);
         } catch (e) {
-            console.error('[MultiMonitors] Error creating indicator for', role, ':', String(e));
+            console.error('[MultiPanel] Error creating indicator for', role, ':', String(e));
             throw e;
         }
 
@@ -291,7 +291,7 @@ const indicatorSupportMethods = {
                     this._addToPanelBox(role, indicator, index + nChildren, box);
                 }
             } catch (e) {
-                console.error('[MultiMonitors] _updateBox: ERROR for role', role, ':', e, e.stack);
+                console.error('[MultiPanel] _updateBox: ERROR for role', role, ':', e, e.stack);
             }
         }
     },
@@ -572,7 +572,7 @@ const indicatorSupportMethods = {
         const rightPadding = PanelSettings.getPanelRightPadding(this._settings);
 
         try {
-            PanelSettings.applyHorizontalPaddingStyle(this, '_mmPanelLayoutBaseStyle', leftPadding, rightPadding);
+            PanelSettings.applyHorizontalPaddingStyle(this, '_multiPanelLayoutBaseStyle', leftPadding, rightPadding);
         } catch (_e) {
         }
     },

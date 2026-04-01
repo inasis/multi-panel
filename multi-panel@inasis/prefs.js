@@ -162,7 +162,7 @@ function clearListBox(listBox) {
     }
 }
 
-class MultiMonitorsPrefsWidget extends Adw.PreferencesGroup {
+class MultiPanelPrefsWidget extends Adw.PreferencesGroup {
     _init(settings, desktopSettings) {
         super._init({
             margin_top: 12,
@@ -920,7 +920,7 @@ class MultiMonitorsPrefsWidget extends Adw.PreferencesGroup {
     }
 }
 
-const MultiMonitorsPrefsWidgetGObject = GObject.registerClass(MultiMonitorsPrefsWidget);
+const MultiPanelPrefsWidgetGObject = GObject.registerClass(MultiPanelPrefsWidget);
 
 class IndicatorPaddingPrefsWidget extends Adw.PreferencesGroup {
     _init(settings) {
@@ -1253,7 +1253,7 @@ class IndicatorPaddingPrefsWidget extends Adw.PreferencesGroup {
 
 const IndicatorPaddingPrefsWidgetGObject = GObject.registerClass(IndicatorPaddingPrefsWidget);
 
-export default class MultiMonitorsExtensionPreferences extends ExtensionPreferences {
+export default class MultiPanelExtensionPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         const settings = this.getSettings();
         const desktopSettings = new Gio.Settings({ schema: 'org.gnome.desktop.interface' });
@@ -1262,7 +1262,7 @@ export default class MultiMonitorsExtensionPreferences extends ExtensionPreferen
             title: _('Settings'),
             icon_name: 'preferences-system-symbolic',
         });
-        settingsPage.add(new MultiMonitorsPrefsWidgetGObject(settings, desktopSettings));
+        settingsPage.add(new MultiPanelPrefsWidgetGObject(settings, desktopSettings));
         window.add(settingsPage);
 
         const paddingPage = new Adw.PreferencesPage({

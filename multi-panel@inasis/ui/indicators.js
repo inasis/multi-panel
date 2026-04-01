@@ -119,7 +119,7 @@ export class StatusIndicatorsController {
     }
 
     _getPanels() {
-        return PanelSettings.getMMPanelArray() ?? [];
+        return PanelSettings.getPanelRegistry() ?? [];
     }
 
     _forEachPanel(callback) {
@@ -196,13 +196,13 @@ export class StatusIndicatorsController {
 
         PanelSettings.applyHorizontalPaddingStyle(
             Main.panel,
-            '_mmPanelLayoutBaseStyle',
+            '_multiPanelLayoutBaseStyle',
             leftPadding,
             rightPadding
         );
         PanelSettings.applyManagedStyle(
             Main.layoutManager.panelBox,
-            '_mmPanelHeightBaseStyle',
+            '_multiPanelHeightBaseStyle',
             baseStyle => {
                 const heightStyle = height > 0 ? `height: ${height}px;` : '';
                 return `${baseStyle}${baseStyle && heightStyle ? ' ' : ''}${heightStyle}`.trim();
@@ -214,8 +214,8 @@ export class StatusIndicatorsController {
     }
 
     _restoreMainPanelPanelLayout() {
-        PanelSettings.restoreManagedStyle(Main.panel, '_mmPanelLayoutBaseStyle');
-        PanelSettings.restoreManagedStyle(Main.layoutManager.panelBox, '_mmPanelHeightBaseStyle');
+        PanelSettings.restoreManagedStyle(Main.panel, '_multiPanelLayoutBaseStyle');
+        PanelSettings.restoreManagedStyle(Main.layoutManager.panelBox, '_multiPanelHeightBaseStyle');
         Main.layoutManager.panelBox.set_height(-1);
         Main.layoutManager.panelBox.queue_relayout?.();
         Main.panel.queue_relayout?.();

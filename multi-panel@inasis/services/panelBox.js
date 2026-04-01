@@ -21,7 +21,7 @@ import {
     trackActorDispose,
 } from './panelRuntime.js';
 
-export class MultiMonitorsPanelBox {
+export class AuxiliaryPanelBox {
     constructor(monitor, settings) {
         this._backgroundClones = [];
         this._settings = settings;

@@ -623,7 +623,7 @@ export const MirroredIndicatorButton = GObject.registerClass(
                 }
 
             } catch (e) {
-                console.debug('[MultiMonitors] Failed to create mirrored indicator:', String(e));
+                console.debug('[MultiPanel] Failed to create mirrored indicator:', String(e));
                 this._createFallbackIcon();
             }
         }
