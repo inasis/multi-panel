@@ -39,6 +39,34 @@ import {
 } from './messages.js';
 
 export const AuxiliaryDateMenuButton = (() => {
+    if (DateMenu.DateMenuButton) {
+        const NativeAuxiliaryDateMenuButton = class NativeAuxiliaryDateMenuButton extends DateMenu.DateMenuButton {
+            _init() {
+                super._init();
+
+                const mainBtn = shellMain?.panel?.statusArea
+                    ? shellMain.panel.statusArea.dateMenu
+                    : null;
+                if (mainBtn) {
+                    const btnCls = mainBtn.get_style_class_name?.();
+                    if (btnCls)
+                        this.set_style_class_name(btnCls);
+
+                    const menuCls = mainBtn.menu?.box?.get_style_class_name?.();
+                    if (menuCls)
+                        this.menu?.box?.set_style_class_name?.(menuCls);
+                }
+
+                this.visible = true;
+                this.show();
+            }
+        };
+
+        const RegisteredClass = GObject.registerClass(NativeAuxiliaryDateMenuButton);
+        Common.patchAddActorMethod(RegisteredClass.prototype);
+        return RegisteredClass;
+    }
+
     let AuxiliaryDateMenuButton = class AuxiliaryDateMenuButton extends PanelMenu.Button {
         _init() {
             let hbox;

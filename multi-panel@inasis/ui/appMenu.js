@@ -24,6 +24,10 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as Panel from 'resource:///org/gnome/shell/ui/panel.js';
 
+export function hasNativeAppMenuButton() {
+    return !!Panel.AppMenuButton?.prototype?._init;
+}
+
 export const MultiPanelAppMenuButton = GObject.registerClass(
     class MultiPanelAppMenuButton extends PanelMenu.Button {
         _init(panel) {
@@ -35,14 +39,14 @@ export const MultiPanelAppMenuButton = GObject.registerClass(
             this._targetAppGroup = null;
             this._lastFocusedWindow = null;
 
-            if (typeof Panel !== 'undefined' && Panel.AppMenuButton && Panel.AppMenuButton.prototype._init) {
+            if (hasNativeAppMenuButton()) {
                 Panel.AppMenuButton.prototype._init.call(this, panel);
             } else {
                 super._init(0.0, null, false);
-                this._startingApps = [];
-                this._targetApp = null;
-                this._busyNotifyId = 0;
-                this._actionGroupNotifyId = 0;
+                this.visible = false;
+                this.reactive = false;
+                this.can_focus = false;
+                return;
             }
 
             this._windowEnteredMonitorId = global.display.connect('window-entered-monitor',
@@ -142,7 +146,7 @@ export const MultiPanelAppMenuButton = GObject.registerClass(
             if (!this._switchWorkspaceNotifyId)
                 return;
 
-            if (typeof Panel !== 'undefined' && Panel.AppMenuButton && Panel.AppMenuButton.prototype._sync)
+            if (Panel.AppMenuButton?.prototype?._sync)
                 Panel.AppMenuButton.prototype._sync.call(this);
         }
 
@@ -152,15 +156,23 @@ export const MultiPanelAppMenuButton = GObject.registerClass(
                 this._actionGroupNotifyId = 0;
             }
 
-            global.display.disconnect(this._windowEnteredMonitorId);
-            global.display.disconnect(this._windowLeftMonitorId);
+            if (this._actionOnWorkspaceGroupNotifyId) {
+                this._targetAppGroup.disconnect(this._actionOnWorkspaceGroupNotifyId);
+                this._actionOnWorkspaceGroupNotifyId = 0;
+                this._targetAppGroup = null;
+            }
+
+            if (this._windowEnteredMonitorId)
+                global.display.disconnect(this._windowEnteredMonitorId);
+            if (this._windowLeftMonitorId)
+                global.display.disconnect(this._windowLeftMonitorId);
 
             if (this._busyNotifyId) {
                 this._targetApp.disconnect(this._busyNotifyId);
                 this._busyNotifyId = 0;
             }
 
-            if (this.menu._windowsChangedId) {
+            if (this.menu?._windowsChangedId) {
                 this.menu._app.disconnect(this.menu._windowsChangedId);
                 this.menu._windowsChangedId = 0;
             }

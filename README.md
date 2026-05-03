@@ -5,7 +5,7 @@ GNOME Shell extension that adds stable auxiliary panels on secondary monitors.
 - Name: `Multi Panel`
 - UUID: `multi-panel@inasis`
 - Author: `inasis`
-- Supported GNOME Shell (metadata): `45, 46, 47, 48, 49`
+- Supported GNOME Shell (metadata): `45, 46, 47, 48, 49, 50`
 
 ## What It Does
 

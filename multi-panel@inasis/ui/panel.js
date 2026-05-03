@@ -28,9 +28,10 @@ import * as CtrlAltTab from 'resource:///org/gnome/shell/ui/ctrlAltTab.js';
 import * as Layout from 'resource:///org/gnome/shell/ui/layout.js';
 import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
 
-import { MultiPanelAppMenuButton } from './appMenu.js';
+import { MultiPanelAppMenuButton, hasNativeAppMenuButton } from './appMenu.js';
 import { installAuxiliaryPanelAppearanceSupport } from './panelAppearance.js';
 import { installAuxiliaryPanelIndicatorSupport } from './panelIndicatorLayout.js';
+import { AuxiliaryQuickSettings } from './quickSettings.js';
 import * as DateMenuPanel from './dateMenu.js';
 import {
     getActorChildren,
@@ -49,6 +50,7 @@ export const SHOW_DATE_TIME_ID = PanelSettings.SHOW_DATE_TIME_ID;
 export const AVAILABLE_INDICATORS_ID = PanelSettings.AVAILABLE_INDICATORS_ID;
 export const TRANSFER_INDICATORS_ID = PanelSettings.TRANSFER_INDICATORS_ID;
 export const INDICATOR_ORDER_ID = PanelSettings.INDICATOR_ORDER_ID;
+export const HIDDEN_INDICATORS_ID = PanelSettings.HIDDEN_INDICATORS_ID;
 export const INDICATOR_PADDING_ID = PanelSettings.INDICATOR_PADDING_ID;
 export const INDICATOR_GAP_ID = PanelSettings.INDICATOR_GAP_ID;
 export const QUICK_SETTINGS_GAP_ID = PanelSettings.QUICK_SETTINGS_GAP_ID;
@@ -59,6 +61,8 @@ export const EXCLUDE_INDICATORS_ID = PanelSettings.EXCLUDE_INDICATORS_ID;
 
 const AUXILIARY_PANEL_ITEM_IMPLEMENTATIONS = {
     'appMenu': MultiPanelAppMenuButton,
+    'dateMenu': DateMenuPanel.AuxiliaryDateMenuButton,
+    'quickSettings': AuxiliaryQuickSettings,
 };
 
 const AuxiliaryPanel = GObject.registerClass(
@@ -142,7 +146,15 @@ const AuxiliaryPanel = GObject.registerClass(
                 { sortGroup: CtrlAltTab.SortGroup.TOP });
 
             this._updatedId = Main.sessionMode.connect('updated', this._updatePanel.bind(this));
-            this._workareasChangedId = global.display.connect('workareas-changed', () => this.queue_relayout());
+            this._workareasChangedId = global.display.connect('workareas-changed', () => {
+                if (!isUsablePanel(this))
+                    return;
+
+                try {
+                    this.queue_relayout();
+                } catch (_e) {
+                }
+            });
 
             this._showActivitiesId = this._settings.connect(
                 'changed::' + SHOW_ACTIVITIES_ID,
@@ -161,6 +173,11 @@ const AuxiliaryPanel = GObject.registerClass(
                 this._showDateTime.bind(this)
             );
             this._showDateTime();
+
+            this._hiddenIndicatorsId = this._settings.connect(
+                'changed::' + HIDDEN_INDICATORS_ID,
+                this._updatePanel.bind(this)
+            );
 
             this._indicatorPaddingId = this._settings.connect(
                 'changed::' + INDICATOR_PADDING_ID,
@@ -237,6 +254,10 @@ const AuxiliaryPanel = GObject.registerClass(
             if (this._showDateTimeId) {
                 this._settings.disconnect(this._showDateTimeId);
                 this._showDateTimeId = null;
+            }
+            if (this._hiddenIndicatorsId) {
+                this._settings.disconnect(this._hiddenIndicatorsId);
+                this._hiddenIndicatorsId = null;
             }
             if (this._indicatorPaddingId) {
                 this._settings.disconnect(this._indicatorPaddingId);
@@ -343,6 +364,12 @@ const AuxiliaryPanel = GObject.registerClass(
 
         _showAppMenu() {
             const role = 'appMenu';
+
+            if (!hasNativeAppMenuButton()) {
+                this._destroyStatusIndicator(role);
+                return;
+            }
+
             this._togglePanelIndicator(
                 role,
                 this._settings.get_boolean(SHOW_APP_MENU_ID),

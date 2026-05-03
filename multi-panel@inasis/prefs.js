@@ -144,10 +144,15 @@ function mergeUniqueRoles(...roleGroups) {
 function getOrderableIndicators(settings) {
     const available = (settings.get_strv(AVAILABLE_INDICATORS_ID) || []).filter(isPersistentRole);
     const transfers = settings.get_value(TRANSFER_INDICATORS_ID).deep_unpack();
-    const order = (settings.get_strv(INDICATOR_ORDER_ID) || []).filter(isPersistentRole);
+    const appMenuAvailable = available.includes('appMenu') ||
+        Object.prototype.hasOwnProperty.call(transfers, 'appMenu');
+    const keepSupportedRole = role => role !== 'appMenu' || appMenuAvailable;
+    const fixed = FIXED_EXTERNAL_PANEL_ROLES.filter(keepSupportedRole);
+    const order = (settings.get_strv(INDICATOR_ORDER_ID) || [])
+        .filter(role => isPersistentRole(role) && keepSupportedRole(role));
 
     return mergeUniqueRoles(
-        FIXED_EXTERNAL_PANEL_ROLES,
+        fixed,
         available,
         Object.keys(transfers),
         order

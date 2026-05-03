@@ -21,8 +21,11 @@ import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import { SYNC_APPEARANCE_ROLES } from './indicatorRoles.js';
 
 const cloneSupportMethods = {
+
+    // Clock
     _createClockDisplay(container) {
         const clockDisplay = new St.Label({
             style_class: 'clock',
@@ -56,6 +59,7 @@ const cloneSupportMethods = {
         this._clockDisplay = clockDisplay;
     },
 
+    // Clone factory
     _createSimpleClone(parent, source) {
         const problematicExtensions = [
             'tiling', 'tilingshell', 'forge', 'pop-shell',
@@ -193,6 +197,7 @@ const cloneSupportMethods = {
         this._quickSettingsClone.queue_relayout();
     },
 
+    // Size monitoring
     _applyNormalMode() {
     },
 
@@ -260,6 +265,7 @@ const cloneSupportMethods = {
         return false;
     },
 
+    // Static icon copy
     _createStaticIconCopy(parent, source) {
         const container = this._isQuickSettingsRole()
             ? parent
@@ -291,8 +297,9 @@ const cloneSupportMethods = {
         this._startIconSync();
     },
 
-    _usesDirectLabelSync() {
-        return this._isDirectSyncRole();
+    // Role predicates (delegating to shared constants)
+    _shouldSyncRoleContainerAppearance() {
+        return SYNC_APPEARANCE_ROLES.has(this._role);
     },
 
     _getMirroredSourceInlineStyle(widget) {
@@ -305,12 +312,7 @@ const cloneSupportMethods = {
         return widget.get_style?.() ?? null;
     },
 
-    _shouldSyncRoleContainerAppearance() {
-        return this._role === 'screenRecording' ||
-            this._role === 'screencast' ||
-            this._role === 'screenSharing';
-    },
-
+    // Actor tree helpers
     _getActorDepth(actor) {
         let depth = 0;
         let current = actor;
@@ -383,6 +385,17 @@ const cloneSupportMethods = {
             Boolean(actor.get_style?.())) ?? root;
     },
 
+    // Appearance sync
+    _syncPseudoClass(container, appearanceSource, pseudoClass) {
+        if (appearanceSource.has_style_pseudo_class?.(pseudoClass)) {
+            container.add_style_pseudo_class(pseudoClass);
+            this.add_style_pseudo_class(pseudoClass);
+        } else {
+            container.remove_style_pseudo_class(pseudoClass);
+            this.remove_style_pseudo_class(pseudoClass);
+        }
+    },
+
     _syncMirroredContainerAppearance(container, source) {
         if (!container || !source)
             return;
@@ -403,21 +416,8 @@ const cloneSupportMethods = {
                 if (container.visible !== nextVisible)
                     container.visible = nextVisible;
 
-                if (appearanceSource.has_style_pseudo_class?.('active')) {
-                    container.add_style_pseudo_class('active');
-                    this.add_style_pseudo_class('active');
-                } else {
-                    container.remove_style_pseudo_class('active');
-                    this.remove_style_pseudo_class('active');
-                }
-
-                if (appearanceSource.has_style_pseudo_class?.('checked')) {
-                    container.add_style_pseudo_class('checked');
-                    this.add_style_pseudo_class('checked');
-                } else {
-                    container.remove_style_pseudo_class('checked');
-                    this.remove_style_pseudo_class('checked');
-                }
+                this._syncPseudoClass(container, appearanceSource, 'active');
+                this._syncPseudoClass(container, appearanceSource, 'checked');
             } catch (_e) {
             }
         };
@@ -426,6 +426,7 @@ const cloneSupportMethods = {
         this._trackWidgetSignals(source, ['notify::style', 'notify::visible'], syncAppearance);
     },
 
+    // Action target finders
     _findDirectActionTarget(actionNames) {
         const target = this._findPreferredRoleActor(this._sourceIndicator, actor =>
             actionNames.some(actionName => typeof actor[actionName] === 'function'));
@@ -443,6 +444,7 @@ const cloneSupportMethods = {
             actor.reactive === true);
     },
 
+    // Signal tracking
     _clearTrackedWidgetSignals() {
         if (!this._trackedWidgetSignals)
             return;
@@ -476,6 +478,7 @@ const cloneSupportMethods = {
         return true;
     },
 
+    // Icon copy
     _copyIconsFromSource(container, source) {
         this._clearTrackedWidgetSignals();
         container.remove_all_children();
@@ -547,7 +550,10 @@ const cloneSupportMethods = {
 
     _findAllDisplayWidgets(actor, stopActor = actor) {
         const widgets = [];
-        if (!actor || !this._isEffectivelyVisible(actor, stopActor))
+        if (!actor)
+            return widgets;
+
+        if (this._role !== 'keyboard' && !this._isEffectivelyVisible(actor, stopActor))
             return widgets;
 
         if (actor instanceof St.Icon || actor instanceof St.Label) {
@@ -561,6 +567,22 @@ const cloneSupportMethods = {
         return widgets;
     },
 
+    // Icon sync timer
+    _makeDestroyGuardedTimer(timeoutKey, body) {
+        return () => {
+            try {
+                if (this._isDestroying) {
+                    this[timeoutKey] = null;
+                    return GLib.SOURCE_REMOVE;
+                }
+                return body();
+            } catch (_e) {
+                this[timeoutKey] = null;
+                return GLib.SOURCE_REMOVE;
+            }
+        };
+    },
+
     _startIconSync() {
         if (this._iconSyncId) {
             GLib.source_remove(this._iconSyncId);
@@ -571,43 +593,31 @@ const cloneSupportMethods = {
             this._labelSyncId = null;
         }
 
-        this._iconSyncId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 5, () => {
-            try {
-                if (this._isDestroying) {
-                    this._iconSyncId = null;
-                    return GLib.SOURCE_REMOVE;
-                }
-
+        this._iconSyncId = GLib.timeout_add_seconds(
+            GLib.PRIORITY_DEFAULT,
+            5,
+            this._makeDestroyGuardedTimer('_iconSyncId', () => {
                 if (this._iconContainer && this._iconSource) {
                     this._copyIconsFromSource(this._iconContainer, this._iconSource);
                     if (this._shouldSyncRoleContainerAppearance())
                         this._syncMirroredContainerAppearance(this._iconContainer, this._iconSource);
                 }
                 return GLib.SOURCE_CONTINUE;
-            } catch (_e) {
-                this._iconSyncId = null;
-                return GLib.SOURCE_REMOVE;
-            }
-        });
+            })
+        );
 
-        if (this._usesDirectLabelSync())
+        if (this._isDirectSyncRole())
             return;
 
-        this._labelSyncId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 2, () => {
-            try {
-                if (this._isDestroying) {
-                    this._labelSyncId = null;
-                    return GLib.SOURCE_REMOVE;
-                }
-
+        this._labelSyncId = GLib.timeout_add_seconds(
+            GLib.PRIORITY_DEFAULT,
+            2,
+            this._makeDestroyGuardedTimer('_labelSyncId', () => {
                 if (this._iconContainer)
                     this._syncLabelTexts(this._iconContainer);
                 return GLib.SOURCE_CONTINUE;
-            } catch (_e) {
-                this._labelSyncId = null;
-                return GLib.SOURCE_REMOVE;
-            }
-        });
+            })
+        );
     },
 
     _syncLabelTexts(container) {
@@ -622,6 +632,7 @@ const cloneSupportMethods = {
         }
     },
 
+    // Fill clone
     _createFillClone(parent, source) {
         const container = new St.BoxLayout({
             style_class: source.get_style_class_name ? source.get_style_class_name() : 'panel-status-menu-box',
@@ -633,25 +644,15 @@ const cloneSupportMethods = {
         this._applyZeroSpacingStyle(container);
 
         const icon = this._findIconInActor(source);
-        if (icon) {
-            const iconCopy = new St.Icon({
-                gicon: icon.gicon,
-                icon_name: icon.icon_name || 'starred-symbolic',
-                icon_size: icon.icon_size || 16,
-                style_class: icon.get_style_class_name() || 'system-status-icon',
-                y_align: Clutter.ActorAlign.CENTER,
-            });
-            this._applyZeroSpacingStyle(iconCopy);
-            container.add_child(iconCopy);
-        } else {
-            const fallbackIcon = new St.Icon({
-                icon_name: 'starred-symbolic',
-                style_class: 'system-status-icon',
-                y_align: Clutter.ActorAlign.CENTER,
-            });
-            this._applyZeroSpacingStyle(fallbackIcon);
-            container.add_child(fallbackIcon);
-        }
+        const iconCopy = new St.Icon({
+            gicon: icon?.gicon ?? null,
+            icon_name: icon?.icon_name || 'starred-symbolic',
+            icon_size: icon?.icon_size || 16,
+            style_class: icon?.get_style_class_name?.() || 'system-status-icon',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        this._applyZeroSpacingStyle(iconCopy);
+        container.add_child(iconCopy);
 
         parent.add_child(container);
         this._favoritesContainer = container;
@@ -669,6 +670,7 @@ const cloneSupportMethods = {
         return null;
     },
 
+    // Fallback
     _createFallbackIcon() {
         const label = new St.Label({
             text: '⚙',

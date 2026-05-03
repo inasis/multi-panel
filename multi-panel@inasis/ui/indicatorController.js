@@ -17,7 +17,6 @@ along with this program; if not, visit https://www.gnu.org/licenses/.
 */
 
 import GLib from 'gi://GLib';
-import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
@@ -54,6 +53,11 @@ export class StatusIndicatorsController {
         this._indicatorPositionsId = this._settings.connect(
             `changed::${PanelSettings.INDICATOR_POSITIONS_ID}`,
             this._onIndicatorPositionsChanged.bind(this)
+        );
+
+        this._hiddenIndicatorsId = this._settings.connect(
+            `changed::${PanelSettings.HIDDEN_INDICATORS_ID}`,
+            this._onHiddenIndicatorsChanged.bind(this)
         );
 
         this._indicatorPaddingId = this._settings.connect(
@@ -96,6 +100,7 @@ export class StatusIndicatorsController {
         this._settings.disconnect(this._excludeIndicatorsId);
         this._settings.disconnect(this._indicatorOrderId);
         this._settings.disconnect(this._indicatorPositionsId);
+        this._settings.disconnect(this._hiddenIndicatorsId);
         this._settings.disconnect(this._indicatorPaddingId);
         this._settings.disconnect(this._indicatorGapId);
         this._settings.disconnect(this._quickSettingsGapId);
@@ -111,6 +116,7 @@ export class StatusIndicatorsController {
         this._mainPanelRefreshTimeoutIds = [];
 
         this._restoreMainPanelIndicatorPositions();
+        this._restoreMainPanelHiddenIndicators();
         this._restoreMainPanelIndicatorPadding();
         this._restoreMainPanelIndicatorGap();
         this._restoreMainPanelPanelLayout();
@@ -142,6 +148,7 @@ export class StatusIndicatorsController {
         PanelSettings.normalizeIndicatorOrder(this._settings);
         this.transferIndicators();
         this._applyMainPanelIndicatorPositions();
+        this._applyMainPanelHiddenIndicators();
         this._reorderMainPanelIndicators();
         this._onMainPanelLayoutChanged();
     }
@@ -157,7 +164,13 @@ export class StatusIndicatorsController {
 
     _onIndicatorPositionsChanged() {
         this._applyMainPanelIndicatorPositions();
+        this._applyMainPanelHiddenIndicators();
         this._reorderMainPanelIndicators();
+        this._forEachPanel(panel => panel?._updatePanel?.());
+    }
+
+    _onHiddenIndicatorsChanged() {
+        this._applyMainPanelHiddenIndicators();
         this._forEachPanel(panel => panel?._updatePanel?.());
     }
 
@@ -180,38 +193,44 @@ export class StatusIndicatorsController {
         if (PanelSettings.shouldApplyIndicatorLayoutToMainPanel(this._settings)) {
             this._applyMainPanelIndicatorPadding();
             this._applyMainPanelIndicatorGap();
-            this._applyMainPanelPanelLayout();
+            this._applyMainPanelPanelPadding();
+            this._applyMainPanelPanelHeight();
             return;
         }
 
         this._restoreMainPanelIndicatorPadding();
         this._restoreMainPanelIndicatorGap();
-        this._restoreMainPanelPanelLayout();
+        this._restoreMainPanelPanelPadding();
+        this._restoreMainPanelPanelHeight();
     }
 
-    _applyMainPanelPanelLayout() {
+    _applyMainPanelPanelPadding() {
         const leftPadding = PanelSettings.getPanelLeftPadding(this._settings);
         const rightPadding = PanelSettings.getPanelRightPadding(this._settings);
-        const height = PanelSettings.getPanelHeight(this._settings);
         const panelContainer = Main.panel._boxContainer ?? null;
         const leftBox = Main.panel._leftBox ?? null;
         const rightBox = Main.panel._rightBox ?? null;
-        const panelBox = Main.layoutManager.panelBox ?? null;
+        const layoutTarget = panelContainer ?? Main.panel;
 
         // Clear previous strategy to avoid stale padding rules across versions.
         PanelSettings.restoreManagedStyle(Main.panel, '_multiPanelLayoutBaseStyle');
         if (panelContainer && panelContainer !== Main.panel)
             PanelSettings.restoreManagedStyle(panelContainer, '_multiPanelLayoutBaseStyle');
+        PanelSettings.restoreManagedStyle(leftBox, '_multiPanelLeftBoxBaseStyle');
+        PanelSettings.restoreManagedStyle(rightBox, '_multiPanelRightBoxBaseStyle');
+        PanelSettings.applyHorizontalPaddingStyle(
+            layoutTarget,
+            '_multiPanelLayoutBaseStyle',
+            leftPadding,
+            rightPadding
+        );
+    }
 
-        // Apply to left/right box directly for GNOME 46+ reliability.
-        PanelSettings.applyManagedStyle(leftBox, '_multiPanelLeftBoxBaseStyle', baseStyle => {
-            const rule = `padding-left: ${leftPadding}px;`;
-            return `${baseStyle}${baseStyle && rule ? ' ' : ''}${rule}`.trim();
-        });
-        PanelSettings.applyManagedStyle(rightBox, '_multiPanelRightBoxBaseStyle', baseStyle => {
-            const rule = `padding-right: ${rightPadding}px;`;
-            return `${baseStyle}${baseStyle && rule ? ' ' : ''}${rule}`.trim();
-        });
+    _applyMainPanelPanelHeight() {
+        const height = PanelSettings.getPanelHeight(this._settings);
+        const panelContainer = Main.panel._boxContainer ?? null;
+        const panelBox = Main.layoutManager.panelBox ?? null;
+
         PanelSettings.applyManagedStyle(
             panelBox,
             '_multiPanelHeightBaseStyle',
@@ -256,12 +275,15 @@ export class StatusIndicatorsController {
         Main.panel.queue_relayout?.();
     }
 
-    _restoreMainPanelPanelLayout() {
+    _restoreMainPanelPanelPadding() {
         PanelSettings.restoreManagedStyle(Main.panel, '_multiPanelLayoutBaseStyle');
         if (Main.panel._boxContainer && Main.panel._boxContainer !== Main.panel)
             PanelSettings.restoreManagedStyle(Main.panel._boxContainer, '_multiPanelLayoutBaseStyle');
         PanelSettings.restoreManagedStyle(Main.panel._leftBox, '_multiPanelLeftBoxBaseStyle');
         PanelSettings.restoreManagedStyle(Main.panel._rightBox, '_multiPanelRightBoxBaseStyle');
+    }
+
+    _restoreMainPanelPanelHeight() {
         PanelSettings.restoreManagedStyle(Main.layoutManager.panelBox, '_multiPanelHeightBaseStyle');
         PanelSettings.restoreManagedStyle(Main.panel, '_multiPanelMainPanelHeightBaseStyle');
         if (Main.panel._boxContainer && Main.panel._boxContainer !== Main.panel)
@@ -276,12 +298,20 @@ export class StatusIndicatorsController {
         Main.panel.queue_relayout?.();
     }
 
+    _restoreMainPanelPanelLayout() {
+        this._restoreMainPanelPanelPadding();
+        this._restoreMainPanelPanelHeight();
+    }
+
     _getMainPanelPositionBoxes() {
         return [Main.panel._leftBox, Main.panel._centerBox, Main.panel._rightBox].filter(Boolean);
     }
 
     _moveMainPanelIndicators(getTargetBox) {
         this._forEachPersistentStatusIndicator((role, indicator) => {
+            if (role === 'activities')
+                return;
+
             if (this._transfered_indicators.some(entry => entry.iname === role))
                 return;
 
@@ -309,6 +339,58 @@ export class StatusIndicatorsController {
 
     _restoreMainPanelIndicatorPositions() {
         this._moveMainPanelIndicators(role => this._getMainPanelTargetBox(role, true));
+    }
+
+    _applyMainPanelHiddenIndicators() {
+        const hiddenIndicators = new Set(PanelSettings.getHiddenIndicators(this._settings));
+
+        this._forEachPersistentStatusIndicator((role, indicator) => {
+            const container = this._getIndicatorContainer(indicator);
+            if (!container)
+                return;
+
+            if (role === 'activities') {
+                if (container._mmHiddenByMultiPanel) {
+                    delete container._mmHiddenByMultiPanel;
+                    container.show?.();
+                }
+                return;
+            }
+
+            if (role === 'keyboard') {
+                if (container._mmHiddenByMultiPanel) {
+                    delete container._mmHiddenByMultiPanel;
+                }
+                indicator.show?.();
+                container.show?.();
+                container.get_first_child?.()?.show?.();
+                return;
+            }
+
+            if (hiddenIndicators.has(role)) {
+                if (!container._mmHiddenByMultiPanel) {
+                    container._mmHiddenByMultiPanel = true;
+                    container.hide?.();
+                }
+                return;
+            }
+
+            if (container._mmHiddenByMultiPanel) {
+                delete container._mmHiddenByMultiPanel;
+                container.show?.();
+            }
+        });
+    }
+
+    _restoreMainPanelHiddenIndicators() {
+        this._forEachPersistentStatusIndicator((_role, indicator) => {
+            const container = this._getIndicatorContainer(indicator);
+            if (!container?._mmHiddenByMultiPanel)
+                return;
+
+            delete container._mmHiddenByMultiPanel;
+            container.show?.();
+        });
     }
 
     _getMainPanelTargetBox(role, useDefaultPosition = false) {
@@ -369,6 +451,9 @@ export class StatusIndicatorsController {
         this._pinMainPanelRightmostIndicator(box, entries);
 
         for (const {child} of entries) {
+            if (this._getMainPanelRoleForChild(child) === 'activities')
+                continue;
+
             box.remove_child(child);
             box.add_child(child);
         }
@@ -397,19 +482,6 @@ export class StatusIndicatorsController {
             .forEach(box => this._reorderMainPanelBox(box));
     }
 
-    _applyZeroSpacingStyle(actor, extraStyle = '') {
-        if (!actor?.set_style)
-            return;
-
-        const base = 'padding: 0; margin: 0; spacing: 0; -natural-hpadding: 0; -minimum-hpadding: 0;';
-        actor.set_style(`${base}${extraStyle ? ` ${extraStyle}` : ''}`.trim());
-    }
-
-    _composeZeroSpacingStyle(baseStyle = '', extraStyle = '') {
-        const zeroStyle = 'padding: 0; margin: 0; spacing: 0; -natural-hpadding: 0; -minimum-hpadding: 0;';
-        return `${zeroStyle}${baseStyle ? ` ${baseStyle}` : ''}${extraStyle ? ` ${extraStyle}` : ''}`.trim();
-    }
-
     _forEachActorChild(actor, callback) {
         const children = actor?.get_children?.() ?? [];
         children.forEach(child => callback(child));
@@ -423,29 +495,6 @@ export class StatusIndicatorsController {
         this._forEachActorChild(actor, child => this._walkActorTree(child, callback));
     }
 
-    _rememberZeroSpacingStyle(actor) {
-        if (!actor?.set_style)
-            return false;
-
-        const originalStyle = actor._mmMainPanelZeroBaseStyle ?? actor.get_style?.() ?? null;
-        if (actor._mmMainPanelZeroBaseStyle === undefined)
-            actor._mmMainPanelZeroBaseStyle = originalStyle;
-        return true;
-    }
-
-    _applyZeroSpacingRecursively(actor) {
-        this._walkActorTree(actor, currentActor => {
-            if (!this._rememberZeroSpacingStyle(currentActor))
-                return;
-
-            this._applyZeroSpacingStyle(currentActor, currentActor._mmMainPanelZeroBaseStyle || '');
-        });
-    }
-
-    _applyZeroSpacingToChildren(actor) {
-        this._forEachActorChild(actor, child => this._applyZeroSpacingRecursively(child));
-    }
-
     _restoreZeroSpacingRecursively(actor) {
         this._walkActorTree(actor, currentActor => {
             if (!currentActor?.set_style || currentActor._mmMainPanelZeroBaseStyle === undefined)
@@ -454,47 +503,6 @@ export class StatusIndicatorsController {
             currentActor.set_style(currentActor._mmMainPanelZeroBaseStyle || null);
             delete currentActor._mmMainPanelZeroBaseStyle;
         });
-    }
-
-    _restoreZeroSpacingFromChildren(actor) {
-        this._forEachActorChild(actor, child => this._restoreZeroSpacingRecursively(child));
-    }
-
-    _applyPaddingToDisplayActor(actor, padding) {
-        if (actor.set_style) {
-            const baseStyle = actor._mmMainPanelZeroBaseStyle ?? actor.get_style?.() ?? null;
-            if (actor._mmMainPanelZeroBaseStyle === undefined)
-                actor._mmMainPanelZeroBaseStyle = baseStyle;
-
-            const nextStyle = this._composeZeroSpacingStyle(
-                baseStyle || '',
-                `padding-left: ${padding}px; padding-right: ${padding}px;`
-            );
-            actor.set_style(nextStyle || null);
-        }
-    }
-
-    _applyMainPanelQuickSettingsInternalPadding(actor) {
-        if (!actor)
-            return;
-
-        const quickSettingsPadding = PanelSettings.getQuickSettingsGap(this._settings);
-        this._forEachActorChild(actor, child => {
-            if (child?.set_style && (child instanceof St.Icon || child instanceof St.Label))
-                this._applyPaddingToDisplayActor(child, quickSettingsPadding);
-
-            this._applyMainPanelQuickSettingsInternalPadding(child);
-        });
-    }
-
-    _applyMainPanelDisplayPadding(actor, padding) {
-        if (!actor)
-            return;
-
-        if (actor instanceof St.Icon || actor instanceof St.Label)
-            this._applyPaddingToDisplayActor(actor, padding);
-
-        this._forEachActorChild(actor, child => this._applyMainPanelDisplayPadding(child, padding));
     }
 
     transferBack(panel) {
@@ -545,6 +553,8 @@ export class StatusIndicatorsController {
                     affectedPanels.add(panel);
                 });
             });
+
+        this._applyMainPanelHiddenIndicators();
 
         for (const panel of affectedPanels)
             panel?._reorderBoxesByIndicatorOrder?.();

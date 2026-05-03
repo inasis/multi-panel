@@ -17,6 +17,7 @@ along with this program; if not, visit https://www.gnu.org/licenses/.
 */
 
 import GLib from 'gi://GLib';
+import { shellVersion } from '../shared/common.js';
 import {
     applyGapStyle,
     applyHorizontalPaddingStyle,
@@ -59,7 +60,7 @@ export const PANEL_BOX_IDS = [
 // Fixed roles that can appear on external panels even if not listed in available-indicators
 export const FIXED_EXTERNAL_PANEL_ROLES = [
     'activities',
-    'appMenu',
+    ...(shellVersion >= 50 ? [] : ['appMenu']),
     'dateMenu',
     'quickSettings',
 ];
@@ -364,8 +365,12 @@ export function isTransientRole(role) {
     return TRANSIENT_ROLE_PATTERNS.some(pattern => pattern.test(role));
 }
 
+export function isSupportedRole(role) {
+    return role !== 'appMenu' || shellVersion < 50;
+}
+
 export function isPersistentRole(role) {
-    return !!role && !isTransientRole(role);
+    return !!role && isSupportedRole(role) && !isTransientRole(role);
 }
 
 function buildNormalizedIndicatorOrder(settings, order, allowed = getOrderableRoles(settings)) {

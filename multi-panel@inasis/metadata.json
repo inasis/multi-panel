@@ -1,5 +1,5 @@
 {
-    "shell-version": ["45", "46", "47", "48", "49"],
+    "shell-version": ["45", "46", "47", "48", "49", "50"],
     "uuid": "multi-panel@inasis",
     "name": "Multi Panel",
     "author": "inasis",
@@ -7,5 +7,5 @@
     "gettext-domain": "multi-panel",
     "description": "Additional monitor bars with mirrored indicators, transfers, and multi-panel layout controls.",
     "url": "https://github.com/inasis/multi-panel",
-    "version": 32
+    "version": 33
 }

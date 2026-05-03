@@ -122,20 +122,33 @@ const interactionSupportMethods = {
         return Clutter.EVENT_STOP;
     },
 
-    _openArcMenu() {
-        let arcMenu = null;
-        let toggleFunc = null;
-
+    _resolveArcMenuToggle() {
         if (this._sourceIndicator.arcMenu) {
-            arcMenu = this._sourceIndicator.arcMenu;
-            toggleFunc = () => this._sourceIndicator.arcMenu.toggle();
-        } else if (this._sourceIndicator._menuButton?.arcMenu) {
-            arcMenu = this._sourceIndicator._menuButton.arcMenu;
-            toggleFunc = () => this._sourceIndicator._menuButton.toggleMenu();
-        } else if (typeof this._sourceIndicator.toggleMenu === 'function') {
-            arcMenu = this._sourceIndicator.arcMenu || this._sourceIndicator.menu;
-            toggleFunc = () => this._sourceIndicator.toggleMenu();
+            return {
+                arcMenu: this._sourceIndicator.arcMenu,
+                toggleFunc: () => this._sourceIndicator.arcMenu.toggle(),
+            };
         }
+
+        if (this._sourceIndicator._menuButton?.arcMenu) {
+            return {
+                arcMenu: this._sourceIndicator._menuButton.arcMenu,
+                toggleFunc: () => this._sourceIndicator._menuButton.toggleMenu(),
+            };
+        }
+
+        if (typeof this._sourceIndicator.toggleMenu === 'function') {
+            return {
+                arcMenu: this._sourceIndicator.arcMenu || this._sourceIndicator.menu,
+                toggleFunc: () => this._sourceIndicator.toggleMenu(),
+            };
+        }
+
+        return { arcMenu: null, toggleFunc: null };
+    },
+
+    _openArcMenu() {
+        const { arcMenu, toggleFunc } = this._resolveArcMenuToggle();
 
         if (arcMenu && arcMenu.sourceActor) {
             const originalSourceActor = arcMenu.sourceActor;
@@ -155,12 +168,8 @@ const interactionSupportMethods = {
         } else {
             this._setButtonActive(true);
 
-            if (typeof this._sourceIndicator.toggleMenu === 'function') {
-                this._sourceIndicator.toggleMenu();
-            } else if (this._sourceIndicator.arcMenu?.toggle) {
-                this._sourceIndicator.arcMenu.toggle();
-            } else if (this._sourceIndicator._menuButton?.toggleMenu) {
-                this._sourceIndicator._menuButton.toggleMenu();
+            if (toggleFunc) {
+                toggleFunc();
             }
 
             this._replaceTimeout('_arcMenuTimeoutId', 300, () => {
@@ -209,7 +218,8 @@ const interactionSupportMethods = {
         const menu = this._sourceIndicator.menu;
 
         const originalSourceActor = menu.sourceActor;
-        const originalBoxPointer = menu.box?._sourceActor;
+        const menuPositionActor = this._getMenuPositionActor(menu);
+        const originalBoxPointer = menuPositionActor?._sourceActor;
         const sourceState = this._preventMainPanelActiveState();
 
         let menuBoxState = null;
@@ -222,7 +232,7 @@ const interactionSupportMethods = {
         this._setButtonActive(true);
         this._setMenuSourceActor(menu, this);
 
-        if (menu.box)
+        if (menuPositionActor)
             menuBoxState = this._updateMenuPositioning(menu, monitorIndex);
 
         this._bindMenuLifecycle(
@@ -242,8 +252,14 @@ const interactionSupportMethods = {
         return Clutter.EVENT_STOP;
     },
 
+    _getMenuPositionActor(menu) {
+        return menu?._boxPointer ?? menu?.box ?? menu?.actor ?? null;
+    },
+
     _updateMenuPositioning(menu, monitorIndex) {
-        const menuBox = menu.box;
+        const menuBox = this._getMenuPositionActor(menu);
+        if (!menuBox)
+            return null;
 
         menuBox._sourceActor = this;
         menuBox._sourceAllocation = null;
@@ -260,6 +276,13 @@ const interactionSupportMethods = {
 
         const originalSetPosition = menuBox.setPosition;
         const monitor = Main.layoutManager.monitors[monitorIndex] || Main.layoutManager.primaryMonitor;
+
+        if (typeof menuBox.setPosition !== 'function') {
+            return {
+                originalSetPosition,
+                removedConstraints,
+            };
+        }
 
         menuBox.setPosition = function (sourceActor, _alignment) {
             const [btnX, btnY] = sourceActor.get_transformed_position();
@@ -298,18 +321,19 @@ const interactionSupportMethods = {
         if (originalSourceActor)
             this._setMenuSourceActor(menu, originalSourceActor);
 
-        if (menu.box && originalBoxPointer)
-            menu.box._sourceActor = originalBoxPointer;
+        const menuPositionActor = this._getMenuPositionActor(menu);
+        if (menuPositionActor && originalBoxPointer)
+            menuPositionActor._sourceActor = originalBoxPointer;
 
         this._restoreSourceIndicatorMenuState(sourceState);
 
-        if (menu.box && menuBoxState) {
+        if (menuPositionActor && menuBoxState) {
             if (menuBoxState.originalSetPosition)
-                menu.box.setPosition = menuBoxState.originalSetPosition;
+                menuPositionActor.setPosition = menuBoxState.originalSetPosition;
 
             if (menuBoxState.removedConstraints?.length > 0) {
                 menuBoxState.removedConstraints.forEach(constraint => {
-                    menu.box.add_constraint(constraint);
+                    menuPositionActor.add_constraint(constraint);
                 });
             }
         }

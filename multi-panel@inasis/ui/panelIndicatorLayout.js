@@ -55,6 +55,12 @@ const indicatorSupportMethods = {
 
         const constructor = this._panelItemImplementations[role];
         if (!constructor) {
+            if (role === 'activities') {
+                indicator = new MirroredIndicatorButton(this, role);
+                this.statusArea[role] = indicator;
+                return indicator;
+            }
+
             const mainIndicator = Main.panel.statusArea[role];
             if (mainIndicator) {
                 try {
@@ -163,16 +169,22 @@ const indicatorSupportMethods = {
             PanelSettings.isPersistentRole(role) &&
             Object.prototype.hasOwnProperty.call(transferredIndicators, role);
 
+        const canMirrorRole = role => {
+            if (!PanelSettings.isPersistentRole(role))
+                return false;
+            if (excludedIndicators.includes(role))
+                return false;
+            if (isTransferredRole(role))
+                return false;
+            return true;
+        };
+
         const findRoleForChild = child => {
             for (const role in mainPanel.statusArea) {
                 const indicator = mainPanel.statusArea[role];
                 if (!indicator)
                     continue;
-                if (!PanelSettings.isPersistentRole(role))
-                    continue;
-                if (excludedIndicators.includes(role))
-                    continue;
-                if (isTransferredRole(role))
+                if (!canMirrorRole(role))
                     continue;
                 if (indicator === child || getIndicatorContainer(indicator) === child)
                     return role;
@@ -206,19 +218,37 @@ const indicatorSupportMethods = {
         for (const [role, indicator] of Object.entries(mainPanel.statusArea)) {
             if (!indicator || knownRoles.has(role))
                 continue;
-            if (!PanelSettings.isPersistentRole(role))
-                continue;
-            if (excludedIndicators.includes(role))
-                continue;
-            if (isTransferredRole(role))
+            if (!canMirrorRole(role))
                 continue;
 
             const container = getIndicatorContainer(indicator);
-            if (!container?.visible)
+            if (role !== 'keyboard' && !container?.visible)
                 continue;
 
             pushRole(role, PanelSettings.getIndicatorPosition(this._settings, role));
         }
+
+        const ensureRole = (role, fallbackPosition = PanelSettings.PANEL_BOX_LEFT) => {
+            if (knownRoles.has(role) || !canMirrorRole(role))
+                return;
+
+            if (role === 'activities') {
+                if (this.monitorIndex !== Main.layoutManager.primaryIndex &&
+                    this._settings.get_boolean(PanelSettings.SHOW_ACTIVITIES_ID)) {
+                    pushRole(role, fallbackPosition);
+                    knownRoles.add(role);
+                }
+                return;
+            }
+
+            if (mainPanel.statusArea[role]) {
+                pushRole(role, fallbackPosition);
+                knownRoles.add(role);
+            }
+        };
+
+        ensureRole('activities', PanelSettings.PANEL_BOX_LEFT);
+        ensureRole('keyboard', PanelSettings.getIndicatorPosition(this._settings, 'keyboard'));
 
         const orderedLeftIndicators = PanelSettings.sortIndicatorsByOrder(
             this._settings,
@@ -239,10 +269,15 @@ const indicatorSupportMethods = {
     },
 
     _updateBox(elements, box) {
-        if (!elements)
+        if (!elements || !box || isDisposedActor(box))
             return;
 
-        const nChildren = box.get_n_children();
+        let nChildren = 0;
+        try {
+            nChildren = box.get_n_children();
+        } catch (_e) {
+            return;
+        }
         const hiddenIndicators = new Set(PanelSettings.getHiddenIndicators(this._settings));
         const transferredIndicators = PanelSettings.getTransferredIndicators(this._settings);
 
@@ -422,8 +457,13 @@ const indicatorSupportMethods = {
             return indicator._favoritesContainer;
         if (indicator?._iconContainer)
             return indicator._iconContainer;
+        if (indicator?._activitiesCloneContainer)
+            return indicator._activitiesCloneContainer;
         if (indicator?._workspaceDotsBox)
             return indicator._workspaceDotsBox;
+
+        if (indicator && indicator.constructor && indicator.constructor.name === 'MirroredIndicatorButton')
+            return targetContainer;
 
         const firstChild = targetContainer.get_first_child?.() ?? null;
         return firstChild ?? targetContainer;
@@ -602,15 +642,9 @@ const indicatorSupportMethods = {
             return;
         }
 
-        let indicator = this.statusArea[role];
-        if (!indicator) {
-            try {
-                indicator = new MirroredIndicatorButton(this, role);
-                this.statusArea[role] = indicator;
-            } catch (_e) {
-                return;
-            }
-        }
+        const indicator = this._ensureIndicator(role);
+        if (!indicator)
+            return;
 
         const container = getIndicatorContainer(indicator);
         if (isDisposedActor(container))

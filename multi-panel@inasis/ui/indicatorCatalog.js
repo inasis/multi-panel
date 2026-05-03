@@ -217,6 +217,9 @@ const catalogSupportMethods = {
         if (parent !== Main.panel._leftBox && parent !== Main.panel._centerBox && parent !== Main.panel._rightBox)
             return null;
 
+        if (role === 'activities')
+            return container;
+
         if (role === 'quickSettings') {
             const contentBox = this._findNamedContainer(container, [
                 'panel-status-indicators-box',
@@ -225,10 +228,7 @@ const catalogSupportMethods = {
             return contentBox ?? container;
         }
 
-        if (role === 'activities' && indicator.label_actor)
-            return indicator.label_actor;
-
-        if (role === 'screenRecording')
+        if (role === 'screenRecording' || role === 'screenSharing')
             return container;
 
         if (role === 'dateMenu' && indicator._clockDisplay) {
@@ -319,76 +319,38 @@ const catalogSupportMethods = {
     },
 
     _applyMainPanelPaddingPreparation(role, target, roots) {
-        if (this._preserveMainPanelIndicatorPadding(role))
-            return;
-
         roots.forEach(root => {
-            if (root === target) {
-                this._applyZeroSpacingStyle(root, root._mmMainPanelZeroBaseStyle ?? root.get_style?.() ?? '');
-                this._applyZeroSpacingToChildren(root);
-                return;
-            }
-
-            this._applyZeroSpacingRecursively(root);
+            if (root._mmMainPanelZeroBaseStyle !== undefined)
+                this._restoreZeroSpacingRecursively(root);
         });
+
+        if (target._mmMainPanelPreservedBaseStyle === undefined)
+            target._mmMainPanelPreservedBaseStyle = target.get_style?.() ?? null;
     },
 
     _applyMainPanelPaddingStyle(role, target, padding) {
-        if (this._preserveMainPanelIndicatorPadding(role)) {
-            if (target._mmMainPanelPreservedBaseStyle === undefined)
-                target._mmMainPanelPreservedBaseStyle = target.get_style?.() ?? null;
-
-            const preservedBaseStyle = target._mmMainPanelPreservedBaseStyle || '';
-            const nextStyle = `${preservedBaseStyle}${preservedBaseStyle ? ' ' : ''}padding-left: ${padding}px; padding-right: ${padding}px;`.trim();
-            target.set_style(nextStyle || null);
-            return;
-        }
-
-        const baseStyle = target._mmMainPanelZeroBaseStyle || '';
-        const nextStyle = this._composeZeroSpacingStyle(
-            baseStyle,
-            `padding-left: ${padding}px; padding-right: ${padding}px;`
-        );
+        const preservedBaseStyle = target._mmMainPanelPreservedBaseStyle ?? target.get_style?.() ?? '';
+        const paddingStyle = `padding-left: ${padding}px; padding-right: ${padding}px;`;
+        const nextStyle = `${preservedBaseStyle}${preservedBaseStyle && paddingStyle ? ' ' : ''}${paddingStyle}`.trim();
         target.set_style(nextStyle || null);
     },
 
-    _applyActivitiesMainPanelPadding(role, target, padding) {
-        const indicator = Main.panel.statusArea[role];
-        const container = this._getIndicatorContainer(indicator);
-        if (container?.set_style) {
-            const containerBaseStyle = container._mmMainPanelZeroBaseStyle ?? container.get_style?.() ?? '';
-            container.set_style(this._composeZeroSpacingStyle(
-                containerBaseStyle,
-                `padding-left: ${padding}px; padding-right: ${padding}px;`
-            ));
-        }
-
-        this._applyMainPanelDisplayPadding(target, padding);
-    },
-
     _applyMainPanelPaddingPostProcessing(role, target, padding) {
-        if (role === 'activities') {
-            this._applyActivitiesMainPanelPadding(role, target, padding);
+        if (role === 'activities')
             return;
-        }
 
-        if (role === 'quickSettings') {
-            this._applyMainPanelQuickSettingsInternalPadding(target);
+        if (role === 'quickSettings')
             return;
-        }
 
-        if (role !== 'dateMenu' && !this._preserveMainPanelIndicatorPadding(role))
-            this._applyMainPanelDisplayPadding(target, padding);
+        if (role === 'dateMenu')
+            return;
     },
 
     _applyMainPanelIndicatorPadding() {
+        this._restoreActivitiesMainPanelPadding();
         this._forEachMainPanelPaddingEntry(({role, target, roots}) => {
             if (!PanelSettings.hasIndicatorPaddingOverride(this._settings, role)) {
                 this._restoreMainPanelPaddingEntry(role, target, roots);
-
-                if (role === 'quickSettings')
-                    this._applyMainPanelQuickSettingsInternalPadding(target);
-
                 return;
             }
 
@@ -400,36 +362,61 @@ const catalogSupportMethods = {
     },
 
     _restoreMainPanelPaddingEntry(role, target, roots) {
-        if (this._preserveMainPanelIndicatorPadding(role)) {
-            if (target._mmMainPanelPreservedBaseStyle !== undefined) {
-                target.set_style(target._mmMainPanelPreservedBaseStyle || null);
-                delete target._mmMainPanelPreservedBaseStyle;
-            }
-            return;
+        if (target._mmMainPanelPreservedBaseStyle !== undefined) {
+            target.set_style(target._mmMainPanelPreservedBaseStyle || null);
+            delete target._mmMainPanelPreservedBaseStyle;
         }
 
         roots.forEach(root => {
-            if (root === target) {
-                if (root._mmMainPanelZeroBaseStyle !== undefined) {
-                    root.set_style(root._mmMainPanelZeroBaseStyle || null);
-                    delete root._mmMainPanelZeroBaseStyle;
-                }
-                this._restoreZeroSpacingFromChildren(root);
-                return;
-            }
-
-            this._restoreZeroSpacingRecursively(root);
+            if (root._mmMainPanelZeroBaseStyle !== undefined)
+                this._restoreZeroSpacingRecursively(root);
         });
     },
 
     _restoreMainPanelIndicatorPadding() {
+        this._restoreActivitiesMainPanelPadding();
         this._forEachMainPanelPaddingEntry(({role, target, roots}) => {
             this._restoreMainPanelPaddingEntry(role, target, roots);
         });
     },
 
+    _restoreActivitiesMainPanelPadding() {
+        const indicator = Main.panel.statusArea.activities;
+        const leftBox = Main.panel._leftBox;
+        const targets = [
+            leftBox,
+            indicator,
+            this._getIndicatorContainer(indicator),
+            indicator?.label_actor,
+        ];
+
+        targets.forEach(target => {
+            if (!target?.set_style)
+                return;
+
+            if (target._mmMainPanelPreservedBaseStyle !== undefined) {
+                target.set_style(target._mmMainPanelPreservedBaseStyle || null);
+                delete target._mmMainPanelPreservedBaseStyle;
+            }
+
+            this._restoreZeroSpacingRecursively(target);
+
+            if (target._mmMainPanelGapStyle !== undefined) {
+                target.set_style(target._mmMainPanelGapStyle || null);
+                delete target._mmMainPanelGapStyle;
+            }
+        });
+    },
+
     _getMainPanelGapTargets() {
-        return [Main.panel._leftBox, Main.panel._centerBox, Main.panel._rightBox].filter(Boolean);
+        const targets = [Main.panel._centerBox, Main.panel._rightBox].filter(Boolean);
+        const activitiesContainer = this._getIndicatorContainer(Main.panel.statusArea.activities);
+        const leftBox = Main.panel._leftBox;
+
+        if (leftBox && activitiesContainer?.get_parent?.() !== leftBox)
+            targets.unshift(leftBox);
+
+        return targets;
     },
 
     _forEachMainPanelGapTarget(callback) {
