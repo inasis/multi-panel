@@ -14,15 +14,6 @@ import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import St from 'gi://St';
-import {
-    emitClick as _emitClick,
-    findClickableScreenshotActor as _findClickableScreenshotActor,
-    getChecked as _getChecked,
-    isPointerButton as _isPointerButton,
-    isScreenshotClickableActor as _isScreenshotClickableActor,
-    setChecked as _setChecked,
-    setPressedState as _setPressedState,
-} from './screenshotHelpers.js';
 
 const SCREENSHOT_ON_ALL_MONITORS_ID = 'screenshot-on-all-monitors';
 
@@ -34,6 +25,60 @@ let _screenshotClones = [];
 let _stageEventId = null;
 let _cloneRects = []; // Store clone bounding boxes for click detection
 let _pendingTimeouts = [];  // Track all one-shot timeouts for cleanup
+
+function _emitClick(actor) {
+    if (typeof actor?.clicked === 'function')
+        actor.clicked(0);
+    else if (typeof actor?.emit === 'function')
+        actor.emit('clicked', 0);
+}
+
+function _setChecked(actor, checked) {
+    if (typeof actor?.set_checked === 'function')
+        actor.set_checked(checked);
+    else if (actor?.checked !== undefined)
+        actor.checked = checked;
+}
+
+function _getChecked(actor) {
+    if (typeof actor?.get_checked === 'function')
+        return actor.get_checked();
+
+    return actor?.checked !== undefined ? actor.checked : false;
+}
+
+function _setPressedState(actor, pressed) {
+    if (typeof actor?.set_pressed === 'function')
+        actor.set_pressed(pressed);
+    else if (typeof actor?.add_style_pseudo_class === 'function' &&
+        typeof actor?.remove_style_pseudo_class === 'function')
+        actor[pressed ? 'add_style_pseudo_class' : 'remove_style_pseudo_class']('active');
+}
+
+function _isPointerButton(actor, screenshotUI) {
+    return actor === screenshotUI._showPointerButtonContainer ||
+        actor === screenshotUI._showPointerButton;
+}
+
+function _isScreenshotClickableActor(actor, screenshotUI) {
+    return actor instanceof St.Button ||
+        actor?.constructor?.name === 'IconLabelButton' ||
+        actor?.has_style_class_name?.('screenshot-ui-capture-button') ||
+        actor === screenshotUI?._captureButton;
+}
+
+function _findClickableScreenshotActor(actor, screenshotUI, maxDepth = 10) {
+    let currentActor = actor;
+
+    for (let depth = 0; depth < maxDepth && currentActor; depth++) {
+        if (_isScreenshotClickableActor(currentActor, screenshotUI))
+            return currentActor;
+
+        currentActor = currentActor.get_parent?.();
+    }
+
+    return null;
+}
 
 function _trackTimeout(timeoutId) {
     _pendingTimeouts.push(timeoutId);

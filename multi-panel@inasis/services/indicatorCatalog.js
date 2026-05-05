@@ -67,7 +67,8 @@ const catalogSupportMethods = {
             PanelSettings.isPersistentRole(indicator) &&
             !excludedIndicators.includes(indicator) &&
             this._isRoutableIndicator(indicator, statusArea[indicator]) &&
-            (indicator === 'keyboard' || this._isIndicatorVisible(statusArea[indicator])));
+            (this._getIndicatorCatalogPolicy(indicator).includeWhenHidden === true ||
+                this._isIndicatorVisible(statusArea[indicator])));
 
         this._assignPreferredPositionsToNewIndicators(availableIndicators);
         this._assignPreferredOrderToNewIndicators(availableIndicators);
@@ -89,7 +90,7 @@ const catalogSupportMethods = {
                 continue;
             if (Object.prototype.hasOwnProperty.call(currentPositions, role))
                 continue;
-            if (role === 'dateMenu' || role === 'quickSettings')
+            if (this._getIndicatorCatalogPolicy(role).preservePreferredSettings === true)
                 continue;
 
             currentPositions[role] = PanelSettings.PANEL_BOX_RIGHT;
@@ -106,7 +107,7 @@ const catalogSupportMethods = {
         const newRoles = availableIndicators.filter(role => {
             if (!PanelSettings.isPersistentRole(role))
                 return false;
-            if (role === 'dateMenu' || role === 'quickSettings')
+            if (this._getIndicatorCatalogPolicy(role).preservePreferredSettings === true)
                 return false;
 
             return !currentOrder.includes(role) &&
@@ -155,6 +156,17 @@ const catalogSupportMethods = {
     _isRoutableIndicator(role, source) {
         const descriptor = getIndicatorDescriptor({role, source});
         return isRoutableDescriptor(descriptor);
+    },
+
+    _getIndicatorCatalogPolicy(role) {
+        return this._getIndicatorDescriptor(role).catalog ?? {};
+    },
+
+    _getIndicatorDescriptor(role) {
+        return getIndicatorDescriptor({
+            role,
+            source: Main.panel.statusArea?.[role] ?? null,
+        });
     },
 
     _pruneIndicatorSettings(availableIndicators) {
@@ -224,32 +236,37 @@ const catalogSupportMethods = {
         if (parent !== Main.panel._leftBox && parent !== Main.panel._centerBox && parent !== Main.panel._rightBox)
             return null;
 
-        if (role === 'activities')
+        const descriptor = this._getIndicatorDescriptor(role);
+        const layout = descriptor.layout ?? {};
+
+        switch (layout.mainPanelPaddingTarget) {
+        case 'container':
             return container;
 
-        if (role === 'quickSettings') {
-            const contentBox = this._findNamedContainer(container, [
-                'panel-status-indicators-box',
-                'panel-status-menu-box',
-            ]);
+        case 'named-container': {
+            const contentBox = this._findNamedContainer(
+                container,
+                layout.mainPanelPaddingClassNames ?? []
+            );
             return contentBox ?? container;
         }
 
-        if (role === 'screenRecording' || role === 'screenSharing')
-            return container;
+        case 'label-parent':
+            if (indicator.label_actor) {
+                const labelParent = indicator.label_actor.get_parent?.() ?? null;
+                return labelParent ?? indicator.label_actor;
+            }
+            break;
 
-        if (role === 'dateMenu' && indicator._clockDisplay) {
-            const clockParent = indicator._clockDisplay.get_parent?.() ?? null;
-            return clockParent ?? indicator._clockDisplay;
-        }
-
-        if (indicator._clockDisplay)
-            return indicator._clockDisplay;
-
-        if (role === 'keyboard') {
+        case 'display-child': {
             const displayChild = this._findFirstDisplayChild(container);
             if (displayChild)
                 return displayChild;
+            break;
+        }
+
+        default:
+            break;
         }
 
         const firstChild = container?.get_first_child?.() ?? null;
@@ -311,7 +328,12 @@ const catalogSupportMethods = {
     },
 
     _preserveMainPanelIndicatorPadding(role) {
-        return role === 'screenRecording';
+        const indicator = Main.panel.statusArea[role];
+        if (!indicator)
+            return false;
+
+        const descriptor = this._getIndicatorDescriptor(role);
+        return descriptor.layout?.preserveMainPanelPadding === true;
     },
 
     _forEachMainPanelPaddingEntry(callback) {
@@ -342,19 +364,8 @@ const catalogSupportMethods = {
         target.set_style(nextStyle || null);
     },
 
-    _applyMainPanelPaddingPostProcessing(role, target, padding) {
-        if (role === 'activities')
-            return;
-
-        if (role === 'quickSettings')
-            return;
-
-        if (role === 'dateMenu')
-            return;
-    },
-
     _applyMainPanelIndicatorPadding() {
-        this._restoreActivitiesMainPanelPadding();
+        this._restoreMainPanelPolicyPadding();
         this._forEachMainPanelPaddingEntry(({role, target, roots}) => {
             if (!PanelSettings.hasIndicatorPaddingOverride(this._settings, role)) {
                 this._restoreMainPanelPaddingEntry(role, target, roots);
@@ -364,7 +375,6 @@ const catalogSupportMethods = {
             this._applyMainPanelPaddingPreparation(role, target, roots);
             const padding = PanelSettings.getIndicatorPadding(this._settings, role);
             this._applyMainPanelPaddingStyle(role, target, padding);
-            this._applyMainPanelPaddingPostProcessing(role, target, padding);
         });
     },
 
@@ -381,21 +391,27 @@ const catalogSupportMethods = {
     },
 
     _restoreMainPanelIndicatorPadding() {
-        this._restoreActivitiesMainPanelPadding();
+        this._restoreMainPanelPolicyPadding();
         this._forEachMainPanelPaddingEntry(({role, target, roots}) => {
             this._restoreMainPanelPaddingEntry(role, target, roots);
         });
     },
 
-    _restoreActivitiesMainPanelPadding() {
-        const indicator = Main.panel.statusArea.activities;
-        const leftBox = Main.panel._leftBox;
-        const targets = [
-            leftBox,
-            indicator,
-            this._getIndicatorContainer(indicator),
-            indicator?.label_actor,
-        ];
+    _restoreMainPanelPolicyPadding() {
+        const targets = [Main.panel._leftBox];
+
+        this._getPersistentStatusRoles().forEach(role => {
+            const descriptor = this._getIndicatorDescriptor(role);
+            if (descriptor.layout?.restoreMainPanelPaddingBeforeApply !== true)
+                return;
+
+            const indicator = Main.panel.statusArea[role];
+            targets.push(
+                indicator,
+                this._getIndicatorContainer(indicator),
+                indicator?.label_actor
+            );
+        });
 
         targets.forEach(target => {
             if (!target?.set_style)
@@ -417,13 +433,23 @@ const catalogSupportMethods = {
 
     _getMainPanelGapTargets() {
         const targets = [Main.panel._centerBox, Main.panel._rightBox].filter(Boolean);
-        const activitiesContainer = this._getIndicatorContainer(Main.panel.statusArea.activities);
+        const anchorContainer = this._getMainPanelGapAnchorContainer();
         const leftBox = Main.panel._leftBox;
 
-        if (leftBox && activitiesContainer?.get_parent?.() !== leftBox)
+        if (leftBox && anchorContainer?.get_parent?.() !== leftBox)
             targets.unshift(leftBox);
 
         return targets;
+    },
+
+    _getMainPanelGapAnchorContainer() {
+        const role = this._getPersistentStatusRoles().find(statusRole =>
+            this._getIndicatorDescriptor(statusRole).layout?.gapAnchor === true);
+
+        if (!role)
+            return null;
+
+        return this._getIndicatorContainer(Main.panel.statusArea[role]);
     },
 
     _forEachMainPanelGapTarget(callback) {

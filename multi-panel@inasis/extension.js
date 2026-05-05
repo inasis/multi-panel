@@ -68,7 +68,6 @@ export default class MultiPanelExtension extends Extension {
         auxiliaryLayoutManager.showPanel();
 
         auxiliaryPanels.length = 0;
-        AuxiliaryPanelManager.setPanelRegistryRef(auxiliaryPanels);
         PanelSettings.setPanelRegistryRef(auxiliaryPanels);
 
 		patchMainPanelEnsureIndicator();

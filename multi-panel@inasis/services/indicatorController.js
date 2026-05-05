@@ -148,6 +148,13 @@ export class StatusIndicatorsController {
         return isRoutableDescriptor(descriptor);
     }
 
+    _getStatusRoleDescriptor(role) {
+        return getIndicatorDescriptor({
+            role,
+            source: Main.panel.statusArea?.[role] ?? null,
+        });
+    }
+
     _forEachPersistentStatusIndicator(callback) {
         this._getPersistentStatusRoles().forEach(role => {
             callback(role, Main.panel.statusArea[role]);
@@ -320,7 +327,7 @@ export class StatusIndicatorsController {
 
     _moveMainPanelIndicators(getTargetBox) {
         this._forEachPersistentStatusIndicator((role, indicator) => {
-            if (role === 'activities')
+            if (this._getStatusRoleDescriptor(role).layout?.skipMainPanelMove === true)
                 return;
 
             if (this._transfered_indicators.some(entry => entry.iname === role))
@@ -360,7 +367,9 @@ export class StatusIndicatorsController {
             if (!container)
                 return;
 
-            if (role === 'activities') {
+            const hiddenMode = this._getStatusRoleDescriptor(role).layout?.mainPanelHiddenMode;
+
+            if (hiddenMode === 'preserve-visible') {
                 if (container._mmHiddenByMultiPanel) {
                     delete container._mmHiddenByMultiPanel;
                     container.show?.();
@@ -368,7 +377,7 @@ export class StatusIndicatorsController {
                 return;
             }
 
-            if (role === 'keyboard') {
+            if (hiddenMode === 'force-visible') {
                 if (container._mmHiddenByMultiPanel) {
                     delete container._mmHiddenByMultiPanel;
                 }
@@ -462,7 +471,8 @@ export class StatusIndicatorsController {
         this._pinMainPanelRightmostIndicator(box, entries);
 
         for (const {child} of entries) {
-            if (this._getMainPanelRoleForChild(child) === 'activities')
+            const role = this._getMainPanelRoleForChild(child);
+            if (role && this._getStatusRoleDescriptor(role).layout?.pinMainPanelOrder === true)
                 continue;
 
             box.remove_child(child);
@@ -479,7 +489,9 @@ export class StatusIndicatorsController {
         if (orderedPersistentEntries.length === 0)
             return;
 
-        const terminalEntry = orderedPersistentEntries[orderedPersistentEntries.length - 1];
+        const terminalEntry = orderedPersistentEntries.find(entry =>
+            this._getStatusRoleDescriptor(entry.role).layout?.forceMainPanelRightmost === true) ??
+            orderedPersistentEntries[orderedPersistentEntries.length - 1];
         const terminalIndex = entries.indexOf(terminalEntry);
         if (terminalIndex < 0 || terminalIndex === entries.length - 1)
             return;
@@ -630,7 +642,7 @@ export class StatusIndicatorsController {
         this._syncMainPanelIndicators();
         this._queueMainPanelRefresh();
         this._forEachPanel(panel => {
-            panel?._ensureQuickSettingsRightmost?.();
+            panel?._ensureRightmostPolicyIndicators?.();
             panel?._reorderBoxesByIndicatorOrder?.();
         });
     }

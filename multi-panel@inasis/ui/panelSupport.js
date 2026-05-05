@@ -16,7 +16,9 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, visit https://www.gnu.org/licenses/.
 */
 
+import St from 'gi://St';
 import Clutter from 'gi://Clutter';
+import GLib from 'gi://GLib';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
@@ -33,7 +35,203 @@ import {
     isDisposedActor,
     isUsablePanel,
     removeActorFromParent,
+    syncWidgetAppearance,
 } from './actorUtils.js';
+
+const appearanceSupportMethods = {
+    _startExtensionWatcher() {
+        this._extensionStateChangedId = Main.extensionManager.connect(
+            'extension-state-changed',
+            this._onExtensionStateChanged.bind(this)
+        );
+
+        this._initialCheckTimeouts = [];
+        const delays = [1000, 2000, 3000, 5000, 8000];
+
+        for (const delay of delays) {
+            const timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => {
+                if (!isUsablePanel(this))
+                    return GLib.SOURCE_REMOVE;
+
+                this._updatePanel();
+                const idx = this._initialCheckTimeouts.indexOf(timeoutId);
+                if (idx >= 0)
+                    this._initialCheckTimeouts.splice(idx, 1);
+                return GLib.SOURCE_REMOVE;
+            });
+            this._initialCheckTimeouts.push(timeoutId);
+        }
+    },
+
+    _onExtensionStateChanged(_extensionManager, _extension) {
+        this._blurMyShellApplied = false;
+
+        if (this._extensionUpdateTimeoutId) {
+            GLib.source_remove(this._extensionUpdateTimeoutId);
+            this._extensionUpdateTimeoutId = null;
+        }
+        this._extensionUpdateTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+            this._updatePanel();
+            this._extensionUpdateTimeoutId = null;
+            return GLib.SOURCE_REMOVE;
+        });
+    },
+
+    _startAppearanceSync() {
+        if (this._appearanceSyncId)
+            return;
+
+        this._appearanceSyncId = GLib.timeout_add(
+            GLib.PRIORITY_DEFAULT,
+            250,
+            () => {
+                if (!isUsablePanel(this))
+                    return GLib.SOURCE_REMOVE;
+
+                try {
+                    this._syncPanelAppearance();
+                    this._maybeRefreshIndicatorsFromMainPanel();
+                } catch (_e) {
+                    return GLib.SOURCE_REMOVE;
+                }
+                return GLib.SOURCE_CONTINUE;
+            }
+        );
+    },
+
+    _getMainPanelIndicatorSignature() {
+        const mainPanel = Main.panel;
+        if (!mainPanel)
+            return '';
+
+        const roles = ['_leftBox', '_centerBox', '_rightBox']
+            .flatMap(boxName => getActorChildren(mainPanel[boxName])
+                .filter(child => child.visible)
+                .map(child => this._getRoleForBoxChild(child))
+                .filter(Boolean)
+                .map(role => `${boxName}:${role}`));
+
+        return roles.join('|');
+    },
+
+    _maybeRefreshIndicatorsFromMainPanel() {
+        if (!isUsablePanel(this))
+            return;
+
+        const signature = this._getMainPanelIndicatorSignature();
+        if (signature === this._lastMainPanelIndicatorSignature)
+            return;
+
+        this._lastMainPanelIndicatorSignature = signature;
+        this._updatePanel();
+    },
+
+    _ensureBlurMyShellCompatibility() {
+        if (!isUsablePanel(this))
+            return;
+
+        const panelBlur = global.blur_my_shell?._panel_blur;
+        if (!panelBlur?.maybe_blur_panel || !panelBlur.enabled)
+            return;
+
+        const existingActors = panelBlur.actors_list?.find(entry => entry?.widgets?.panel === this);
+        if (existingActors) {
+            this._blurMyShellApplied = true;
+            return;
+        }
+
+        try {
+            if (!this.mapped || this.width <= 0 || this.height <= 0)
+                return;
+
+            panelBlur.maybe_blur_panel(this);
+            const appliedActors = panelBlur.actors_list?.find(entry => entry?.widgets?.panel === this);
+            this._blurMyShellApplied = !!appliedActors;
+        } catch (e) {
+            console.debug('[MultiPanel] Blur my Shell compatibility failed:', String(e));
+        }
+    },
+
+    _syncBlurMyShellActor() {
+        if (!isUsablePanel(this))
+            return;
+
+        const panelBlur = global.blur_my_shell?._panel_blur;
+        const actors = panelBlur?.actors_list?.find(entry => entry?.widgets?.panel === this);
+        if (!actors) {
+            this._blurMyShellApplied = false;
+            return;
+        }
+
+        const monitor = Main.layoutManager.findMonitorForActor(this);
+        if (!monitor)
+            return;
+
+        actors.monitor = monitor;
+
+        const background = actors.widgets?.background;
+        const backgroundGroup = actors.widgets?.background_group;
+        const panelBox = actors.widgets?.panel_box;
+        if (!background || !panelBox)
+            return;
+
+        if (backgroundGroup) {
+            backgroundGroup.set_position(0, 0);
+            backgroundGroup.set_size(panelBox.width, panelBox.height);
+        }
+
+        if (actors.static_blur) {
+            background.x = 0;
+            background.y = 0.5;
+            background.width = monitor.width;
+            background.height = monitor.height;
+            background.set_clip(0, 0, this.width, this.height);
+        } else {
+            background.x = 0;
+            background.y = 0;
+            background.width = panelBox.width;
+            background.height = panelBox.height;
+        }
+    },
+
+    _syncPanelAppearance() {
+        if (!isUsablePanel(this))
+            return;
+
+        syncWidgetAppearance(this, Main.panel);
+        [
+            [this._leftBox, Main.panel._leftBox],
+            [this._centerBox, Main.panel._centerBox],
+            [this._rightBox, Main.panel._rightBox],
+        ].forEach(([target, source]) => syncWidgetAppearance(target, source));
+
+        const panelBox = this._panelBoxWrapper?.panelBox;
+        if (panelBox && !isDisposedActor(panelBox)) {
+            try {
+                this.set_position(0, 0);
+                this.set_size(panelBox.width, panelBox.height);
+            } catch (_e) {
+                return;
+            }
+        }
+
+        try {
+            this._panelBoxWrapper?.syncFromMainPanel?.();
+            this._applyPanelLayout();
+            this._applyIndicatorGap();
+            this._ensureBlurMyShellCompatibility();
+            this._syncBlurMyShellActor();
+        } catch (_e) {
+        }
+    },
+
+    vfunc_map() {
+        St.Widget.prototype.vfunc_map.call(this);
+        this._syncPanelAppearance();
+        this._updatePanel();
+        this._showDateTime();
+    },
+};
 
 const indicatorSupportMethods = {
     _hideIndicators() {
@@ -46,7 +244,8 @@ const indicatorSupportMethods = {
     },
 
     _ensureIndicator(role) {
-        if (role === 'activities' && this.monitorIndex === Main.layoutManager.primaryIndex)
+        const descriptor = this._describeIndicatorRole(role);
+        if (this._shouldHideRoleOnThisMonitor(descriptor))
             return null;
 
         let indicator = this.statusArea[role];
@@ -58,7 +257,6 @@ const indicatorSupportMethods = {
             return indicator;
         }
 
-        const descriptor = this._describeIndicatorRole(role);
         if (!isRoutableDescriptor(descriptor))
             return null;
 
@@ -85,6 +283,29 @@ const indicatorSupportMethods = {
             role,
             source: Main.panel.statusArea?.[role] ?? null,
         });
+    },
+
+    _shouldHideRoleOnThisMonitor(descriptor) {
+        return descriptor.layout?.hideOnPrimaryMonitor === true &&
+            this.monitorIndex === Main.layoutManager.primaryIndex;
+    },
+
+    _shouldIncludeHiddenSource(descriptor) {
+        return descriptor.catalog?.includeWhenHidden === true ||
+            descriptor.capabilities?.has('always-visible') === true;
+    },
+
+    _shouldEnsureAuxiliaryRole(descriptor) {
+        if (descriptor.layout?.ensureOnAuxiliary !== true)
+            return false;
+
+        const settingKey = descriptor.layout?.showWhenSetting;
+        return !settingKey || this._settings.get_boolean(settingKey);
+    },
+
+    _getRightmostAuxiliaryRoles() {
+        return Object.keys(Main.panel.statusArea ?? {})
+            .filter(role => this._describeIndicatorRole(role).layout?.forceAuxiliaryRightmost === true);
     },
 
     _createDedicatedIndicator(role, descriptor) {
@@ -161,7 +382,7 @@ const indicatorSupportMethods = {
         this._syncPanelAppearance();
         this._hideIndicators();
         this._cloneAllMainPanelIndicators();
-        this._ensureQuickSettingsRightmost();
+        this._ensureRightmostPolicyIndicators();
         this._reorderBoxesByIndicatorOrder();
     },
 
@@ -235,7 +456,8 @@ const indicatorSupportMethods = {
                 continue;
 
             const container = getIndicatorContainer(indicator);
-            if (role !== 'keyboard' && !container?.visible)
+            const descriptor = this._describeIndicatorRole(role);
+            if (!this._shouldIncludeHiddenSource(descriptor) && !container?.visible)
                 continue;
 
             pushRole(role, PanelSettings.getIndicatorPosition(this._settings, role));
@@ -245,9 +467,9 @@ const indicatorSupportMethods = {
             if (knownRoles.has(role) || !canMirrorRole(role))
                 return;
 
-            if (role === 'activities') {
-                if (this.monitorIndex !== Main.layoutManager.primaryIndex &&
-                    this._settings.get_boolean(PanelSettings.SHOW_ACTIVITIES_ID)) {
+            const descriptor = this._describeIndicatorRole(role);
+            if (this._shouldEnsureAuxiliaryRole(descriptor)) {
+                if (!this._shouldHideRoleOnThisMonitor(descriptor)) {
                     pushRole(role, fallbackPosition);
                     knownRoles.add(role);
                 }
@@ -260,8 +482,14 @@ const indicatorSupportMethods = {
             }
         };
 
-        ensureRole('activities', PanelSettings.PANEL_BOX_LEFT);
-        ensureRole('keyboard', PanelSettings.getIndicatorPosition(this._settings, 'keyboard'));
+        for (const role of Object.keys(mainPanel.statusArea ?? {})) {
+            const descriptor = this._describeIndicatorRole(role);
+            if (!this._shouldEnsureAuxiliaryRole(descriptor) &&
+                !this._shouldIncludeHiddenSource(descriptor))
+                continue;
+
+            ensureRole(role, PanelSettings.getIndicatorPosition(this._settings, role));
+        }
 
         const orderedLeftIndicators = PanelSettings.sortIndicatorsByOrder(
             this._settings,
@@ -295,36 +523,37 @@ const indicatorSupportMethods = {
         const transferredIndicators = PanelSettings.getTransferredIndicators(this._settings);
 
         for (const [index, role] of elements.entries()) {
-            if (role === 'activities' && this.monitorIndex === Main.layoutManager.primaryIndex)
+            const descriptor = this._describeIndicatorRole(role);
+            if (this._shouldHideRoleOnThisMonitor(descriptor))
                 continue;
 
-                if (Object.prototype.hasOwnProperty.call(transferredIndicators, role)) {
-                    const existing = this.statusArea[role];
-                    if (existing) {
-                        const container = getIndicatorContainer(existing);
-                        if (!isDisposedActor(container))
-                            removeActorFromParent(container);
-                        existing.destroy?.();
-                    }
-                    continue;
+            if (Object.prototype.hasOwnProperty.call(transferredIndicators, role)) {
+                const existing = this.statusArea[role];
+                if (existing) {
+                    const container = getIndicatorContainer(existing);
+                    if (!isDisposedActor(container))
+                        removeActorFromParent(container);
+                    existing.destroy?.();
                 }
+                continue;
+            }
 
-                if (hiddenIndicators.has(role)) {
-                    const existing = this.statusArea[role];
-                    if (existing) {
-                        const container = getIndicatorContainer(existing);
-                        if (!isDisposedActor(container))
-                            removeActorFromParent(container);
-                        existing.hide?.();
-                    }
-                    continue;
+            if (hiddenIndicators.has(role)) {
+                const existing = this.statusArea[role];
+                if (existing) {
+                    const container = getIndicatorContainer(existing);
+                    if (!isDisposedActor(container))
+                        removeActorFromParent(container);
+                    existing.hide?.();
                 }
+                continue;
+            }
 
             try {
                 const indicator = this._ensureIndicator(role);
                 if (indicator) {
                     if (indicator._isEmpty) {
-                        if (role === 'keyboard') {
+                        if (this._shouldIncludeHiddenSource(descriptor)) {
                             this._addToPanelBox(role, indicator, index + nChildren, box);
                             indicator.hide?.();
                             continue;
@@ -453,18 +682,16 @@ const indicatorSupportMethods = {
         if (!targetContainer)
             return null;
 
-        if (indicator?._clockDisplay)
-            return indicator._clockDisplay;
-        if (indicator?._quickSettingsContainer)
-            return indicator._quickSettingsContainer;
+        const descriptor = indicator?._descriptor ?? this._describeIndicatorRole(role);
+        const layout = descriptor.layout ?? {};
+
+        if (layout.auxiliaryPaddingTarget === 'label-actor' && indicator?.label_actor)
+            return indicator.label_actor;
+
         if (indicator?._iconContainer)
             return indicator._iconContainer;
-        if (indicator?._activitiesCloneContainer)
-            return indicator._activitiesCloneContainer;
-        if (indicator?._workspaceDotsBox)
-            return indicator._workspaceDotsBox;
 
-        if (indicator && indicator.constructor && indicator.constructor.name === 'MirroredIndicatorButton')
+        if (indicator instanceof MirroredIndicatorButton)
             return targetContainer;
 
         const firstChild = targetContainer.get_first_child?.() ?? null;
@@ -478,8 +705,9 @@ const indicatorSupportMethods = {
     _getIndicatorPaddingTargets(role, container = null) {
         const indicator = this.statusArea[role];
         const target = this._getIndicatorPaddingTarget(role, container);
+        const descriptor = indicator?._descriptor ?? this._describeIndicatorRole(role);
 
-        if (role !== 'quickSettings')
+        if (descriptor.layout?.auxiliaryPaddingMode !== 'outer-and-target')
             return target ? [{ actor: target, key: '_mmOriginalInlineStyle' }] : [];
 
         const outerTarget = container ?? indicator;
@@ -525,12 +753,6 @@ const indicatorSupportMethods = {
         const hasOverride = PanelSettings.hasIndicatorPaddingOverride(this._settings, role);
         const padding = this._getAuxiliaryIndicatorPadding(role);
 
-        if (role === 'quickSettings') {
-            this.statusArea[role]?._applyQuickSettingsIndicatorPadding?.(
-                Number.isFinite(padding) ? padding : PanelSettings.getQuickSettingsGap(this._settings)
-            );
-        }
-
         if (!hasOverride) {
             this._getIndicatorPaddingTargets(role, container)
                 .forEach(({actor, key}) => this._restoreAuxiliaryPaddingStyle(actor, key));
@@ -542,12 +764,6 @@ const indicatorSupportMethods = {
     },
 
     _restoreIndicatorPadding(role, container = null) {
-        if (role === 'quickSettings') {
-            this.statusArea[role]?._applyQuickSettingsIndicatorPadding?.(
-                PanelSettings.getDefaultIndicatorPadding(this._settings, role) ?? 0
-            );
-        }
-
         this._getIndicatorPaddingTargets(role, container)
             .forEach(({actor, key}) => this._restoreAuxiliaryPaddingStyle(actor, key));
     },
@@ -619,14 +835,19 @@ const indicatorSupportMethods = {
         }
     },
 
-    _ensureQuickSettingsRightmost() {
+    _ensureRightmostPolicyIndicators() {
         if (!isUsablePanel(this) || isDisposedActor(this._rightBox))
             return;
 
-        const role = 'quickSettings';
-        const mainQS = Main.panel.statusArea[role];
+        const roles = this._getRightmostAuxiliaryRoles();
+        for (const role of roles)
+            this._ensureRightmostIndicator(role);
+    },
 
-        if (!mainQS) {
+    _ensureRightmostIndicator(role) {
+        const mainIndicator = Main.panel.statusArea[role];
+
+        if (!mainIndicator) {
             if (this.statusArea[role]) {
                 const ind = this.statusArea[role];
                 const cont = getIndicatorContainer(ind);
@@ -667,6 +888,6 @@ const indicatorSupportMethods = {
     },
 };
 
-export function installAuxiliaryPanelIndicatorSupport(prototype) {
-    Object.assign(prototype, indicatorSupportMethods);
+export function installAuxiliaryPanelSupport(prototype) {
+    Object.assign(prototype, appearanceSupportMethods, indicatorSupportMethods);
 }

@@ -22,6 +22,22 @@ export const DEFAULT_INDICATOR_RULES = [
         apply: descriptor => ({
             ...descriptor,
             kind: 'overview-forward',
+            appearance: {
+                name: 'mmPanelActivities',
+                styleClass: 'mm-activities',
+            },
+            layout: {
+                auxiliaryPaddingTarget: 'label-actor',
+                ensureOnAuxiliary: true,
+                gapAnchor: true,
+                hideOnPrimaryMonitor: true,
+                mainPanelHiddenMode: 'preserve-visible',
+                mainPanelPaddingTarget: 'container',
+                pinMainPanelOrder: true,
+                restoreMainPanelPaddingBeforeApply: true,
+                skipMainPanelMove: true,
+                showWhenSetting: 'show-activities',
+            },
             reason: null,
         }),
     },
@@ -42,6 +58,13 @@ export const DEFAULT_INDICATOR_RULES = [
             ...descriptor,
             kind: 'dedicated',
             implementation: 'dateMenu',
+            catalog: {
+                preservePreferredSettings: true,
+            },
+            layout: {
+                auxiliaryPaddingTarget: 'label-actor',
+                mainPanelPaddingTarget: 'label-parent',
+            },
             reason: null,
         }),
     },
@@ -52,6 +75,19 @@ export const DEFAULT_INDICATOR_RULES = [
             ...descriptor,
             kind: 'dedicated',
             implementation: 'quickSettings',
+            catalog: {
+                preservePreferredSettings: true,
+            },
+            layout: {
+                auxiliaryPaddingMode: 'outer-and-target',
+                forceAuxiliaryRightmost: true,
+                forceMainPanelRightmost: true,
+                mainPanelPaddingTarget: 'named-container',
+                mainPanelPaddingClassNames: [
+                    'panel-status-indicators-box',
+                    'panel-status-menu-box',
+                ],
+            },
             reason: null,
         }),
     },
@@ -78,6 +114,32 @@ export const DEFAULT_INDICATOR_RULES = [
                 ...descriptor.capabilities,
                 'direct-action',
                 'appearance-sync',
+            ]),
+            layout: {
+                mainPanelPaddingTarget: 'container',
+                preserveMainPanelPadding: descriptor.role === 'screenRecording',
+            },
+        }),
+    },
+    {
+        name: 'keyboard-prefers-display-padding',
+        match: descriptor => descriptor.role === 'keyboard',
+        apply: descriptor => ({
+            ...descriptor,
+            layout: {
+                ...(descriptor.layout ?? {}),
+                mainPanelHiddenMode: 'force-visible',
+                mainPanelPaddingTarget: 'display-child',
+            },
+            catalog: {
+                ...(descriptor.catalog ?? {}),
+                includeWhenHidden: true,
+            },
+            capabilities: new Set([
+                ...descriptor.capabilities,
+                'ignore-source-style',
+                'ignore-source-visibility',
+                'always-visible',
             ]),
         }),
     },

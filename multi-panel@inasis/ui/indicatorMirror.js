@@ -26,8 +26,7 @@ import Graphene from 'gi://Graphene';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as Util from 'resource:///org/gnome/shell/misc/util.js';
-import { installMirroredIndicatorCloneSupport } from './indicatorMirrorClone.js';
-import { installMirroredIndicatorInteractionSupport } from './indicatorMirrorMenu.js';
+import { installMirroredIndicatorSupport } from './indicatorMirrorSupport.js';
 import { getIndicatorDescriptor } from '../services/indicatorRouter.js';
 
 const INACTIVE_WORKSPACE_DOT_SCALE = 0.75;
@@ -188,8 +187,8 @@ export const MirroredIndicatorButton = GObject.registerClass(
             } catch (_e) {
             }
 
-            if (role === 'activities') {
-                this._initActivitiesButton();
+            if (this._isDescriptorKind('overview-forward')) {
+                this._initOverviewForwardButton();
             } else {
                 this._initGenericIndicator(role);
             }
@@ -232,7 +231,7 @@ export const MirroredIndicatorButton = GObject.registerClass(
 
         _isDirectSyncRole() {
             return this._descriptor?.capabilities?.has('direct-action') ||
-                this._role === 'keyboard';
+                this._descriptor?.capabilities?.has('always-visible');
         }
 
         _hasCapability(capability) {
@@ -284,7 +283,7 @@ export const MirroredIndicatorButton = GObject.registerClass(
         }
 
         _syncCopiedWidgetVisibility(targetWidget, sourceWidget, stopActor) {
-            const nextVisible = this._role === 'keyboard'
+            const nextVisible = this._hasCapability('ignore-source-visibility')
                 ? true
                 : this._isEffectivelyVisible(sourceWidget, stopActor);
             if (targetWidget.visible !== nextVisible)
@@ -467,8 +466,8 @@ export const MirroredIndicatorButton = GObject.registerClass(
             this._sourceGrandchildVisibleIds = null;
         }
 
-        _cleanupActivitiesSignals() {
-            if (this._role !== 'activities')
+        _cleanupOverviewForwardSignals() {
+            if (!this._isDescriptorKind('overview-forward'))
                 return;
 
             this._disconnectSignal(Main.overview, '_showingId');
@@ -478,11 +477,15 @@ export const MirroredIndicatorButton = GObject.registerClass(
         }
 
         // Initialisation
-        _initActivitiesButton() {
-            this._sourceIndicator = Main.panel.statusArea.activities ?? null;
+        _initOverviewForwardButton() {
+            this._sourceIndicator = this._descriptor?.source ??
+                Main.panel.statusArea?.[this._role] ??
+                null;
             this.accessible_role = Atk.Role.TOGGLE_BUTTON;
-            this.name = 'mmPanelActivities';
-            this.add_style_class_name('mm-activities');
+            if (this._descriptor?.appearance?.name)
+                this.name = this._descriptor.appearance.name;
+            if (this._descriptor?.appearance?.styleClass)
+                this.add_style_class_name(this._descriptor.appearance.styleClass);
 
             // Set up for full height hover
             this.y_expand = true;
@@ -503,8 +506,8 @@ export const MirroredIndicatorButton = GObject.registerClass(
                 });
                 this.add_child(container);
                 this.label_actor = container;
-                this._activitiesCloneContainer = container;
-                this._createAllocationSyncedClone(container, sourceDisplay, 'activities');
+                this._overviewForwardCloneContainer = container;
+                this._createAllocationSyncedClone(container, sourceDisplay, 'overview-forward');
             } else {
                 this._workspaceDotsBox = new MultiPanelWorkspaceIndicators();
                 this.add_child(this._workspaceDotsBox);
@@ -580,7 +583,7 @@ export const MirroredIndicatorButton = GObject.registerClass(
             if (!child)
                 return false;
 
-            if (this._role === 'keyboard')
+            if (this._hasCapability('ignore-source-visibility'))
                 return true;
 
             if (!this._sourceIndicator.visible || !child.visible)
@@ -600,7 +603,7 @@ export const MirroredIndicatorButton = GObject.registerClass(
                 return;
 
             const hasVisibleContent = this._hasVisibleSourceContent();
-            this.visible = this._role === 'keyboard' ? true : hasVisibleContent;
+            this.visible = this._hasCapability('always-visible') ? true : hasVisibleContent;
 
             if (!hasVisibleContent)
                 this.remove_style_pseudo_class?.('active');
@@ -711,5 +714,4 @@ export const MirroredIndicatorButton = GObject.registerClass(
 
     });
 
-installMirroredIndicatorCloneSupport(MirroredIndicatorButton.prototype);
-installMirroredIndicatorInteractionSupport(MirroredIndicatorButton.prototype);
+installMirroredIndicatorSupport(MirroredIndicatorButton.prototype);

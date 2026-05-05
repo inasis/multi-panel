@@ -28,11 +28,11 @@ import * as CtrlAltTab from 'resource:///org/gnome/shell/ui/ctrlAltTab.js';
 import * as Layout from 'resource:///org/gnome/shell/ui/layout.js';
 import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
 
-import { MultiPanelAppMenuButton, hasNativeAppMenuButton } from './appMenu.js';
-import { installAuxiliaryPanelAppearanceSupport } from './panelAppearance.js';
-import { installAuxiliaryPanelIndicatorSupport } from './panelIndicatorLayout.js';
-import { AuxiliaryQuickSettings } from './quickSettings.js';
-import * as DateMenuPanel from './dateMenu.js';
+import {
+    AUXILIARY_PANEL_ITEM_IMPLEMENTATIONS,
+    hasNativeAppMenuButton,
+} from './mandatory/dedicatedIndicators.js';
+import { installAuxiliaryPanelSupport } from './panelSupport.js';
 import {
     getActorChildren,
     isDisposedActor,
@@ -41,8 +41,6 @@ import {
     trackActorDispose,
 } from './actorUtils.js';
 import * as PanelSettings from '../services/settings.js';
-
-DateMenuPanel.setShellMain(Main);
 
 export const SHOW_ACTIVITIES_ID = PanelSettings.SHOW_ACTIVITIES_ID;
 export const SHOW_APP_MENU_ID = PanelSettings.SHOW_APP_MENU_ID;
@@ -58,12 +56,6 @@ export const PANEL_LEFT_PADDING_ID = PanelSettings.PANEL_LEFT_PADDING_ID;
 export const PANEL_RIGHT_PADDING_ID = PanelSettings.PANEL_RIGHT_PADDING_ID;
 export const PANEL_HEIGHT_ID = PanelSettings.PANEL_HEIGHT_ID;
 export const EXCLUDE_INDICATORS_ID = PanelSettings.EXCLUDE_INDICATORS_ID;
-
-const AUXILIARY_PANEL_ITEM_IMPLEMENTATIONS = {
-    'appMenu': MultiPanelAppMenuButton,
-    'dateMenu': DateMenuPanel.AuxiliaryDateMenuButton,
-    'quickSettings': AuxiliaryQuickSettings,
-};
 
 const AuxiliaryPanel = GObject.registerClass(
     class AuxiliaryPanel extends St.Widget {
@@ -500,7 +492,6 @@ const AuxiliaryPanel = GObject.registerClass(
         }
     });
 
-installAuxiliaryPanelAppearanceSupport(AuxiliaryPanel.prototype);
-installAuxiliaryPanelIndicatorSupport(AuxiliaryPanel.prototype);
+installAuxiliaryPanelSupport(AuxiliaryPanel.prototype);
 
 export { AuxiliaryPanel };

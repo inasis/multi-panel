@@ -1,5 +1,4 @@
 /*
-Copyright (C) 2014  spin83
 Copyright (C) 2026  inasis
 
 This program is free software; you can redistribute it and/or
@@ -16,9 +15,14 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, visit https://www.gnu.org/licenses/.
 */
 
-export { setShellMain } from './date/state.js';
-export {
-    AuxiliaryCalendar,
-    AuxiliaryEventsSection,
-} from './date/calendar.js';
-export { AuxiliaryDateMenuButton } from './date/button.js';
+import { MultiPanelAppMenuButton, hasNativeAppMenuButton } from './appMenu.js';
+import { AuxiliaryDateMenuButton } from './dateMenu.js';
+import { AuxiliaryQuickSettings } from './quickSettings.js';
+
+export { hasNativeAppMenuButton };
+
+export const AUXILIARY_PANEL_ITEM_IMPLEMENTATIONS = {
+    appMenu: MultiPanelAppMenuButton,
+    dateMenu: AuxiliaryDateMenuButton,
+    quickSettings: AuxiliaryQuickSettings,
+};
