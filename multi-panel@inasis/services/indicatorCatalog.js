@@ -21,7 +21,8 @@ import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import * as PanelSettings from '../services/settings.js';
+import { getIndicatorDescriptor, isRoutableDescriptor } from './indicatorRouter.js';
+import * as PanelSettings from './settings.js';
 
 const catalogSupportMethods = {
     _updateSessionIndicators() {
@@ -65,6 +66,7 @@ const catalogSupportMethods = {
             Object.prototype.hasOwnProperty.call(statusArea, indicator) &&
             PanelSettings.isPersistentRole(indicator) &&
             !excludedIndicators.includes(indicator) &&
+            this._isRoutableIndicator(indicator, statusArea[indicator]) &&
             (indicator === 'keyboard' || this._isIndicatorVisible(statusArea[indicator])));
 
         this._assignPreferredPositionsToNewIndicators(availableIndicators);
@@ -148,6 +150,11 @@ const catalogSupportMethods = {
         };
 
         return visibleDescendants(container);
+    },
+
+    _isRoutableIndicator(role, source) {
+        const descriptor = getIndicatorDescriptor({role, source});
+        return isRoutableDescriptor(descriptor);
     },
 
     _pruneIndicatorSettings(availableIndicators) {

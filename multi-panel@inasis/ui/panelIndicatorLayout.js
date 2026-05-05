@@ -21,6 +21,11 @@ import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import { MirroredIndicatorButton } from './indicatorMirror.js';
+import {
+    getIndicatorDescriptor,
+    isMirroredDescriptor,
+    isRoutableDescriptor,
+} from '../services/indicatorRouter.js';
 import * as PanelSettings from '../services/settings.js';
 import {
     getActorChildren,
@@ -53,30 +58,45 @@ const indicatorSupportMethods = {
             return indicator;
         }
 
-        const constructor = this._panelItemImplementations[role];
-        if (!constructor) {
-            if (role === 'activities') {
-                indicator = new MirroredIndicatorButton(this, role);
+        const descriptor = this._describeIndicatorRole(role);
+        if (!isRoutableDescriptor(descriptor))
+            return null;
+
+        if (descriptor.kind === 'dedicated')
+            return this._createDedicatedIndicator(role, descriptor);
+
+        if (descriptor.kind === 'overview-forward' ||
+            isMirroredDescriptor(descriptor)) {
+            try {
+                indicator = new MirroredIndicatorButton(this, role, descriptor);
                 this.statusArea[role] = indicator;
                 return indicator;
+            } catch (e) {
+                console.error('[MultiPanel] Failed to create routed indicator for', role, ':', String(e));
+                return null;
             }
-
-            const mainIndicator = Main.panel.statusArea[role];
-            if (mainIndicator) {
-                try {
-                    indicator = new MirroredIndicatorButton(this, role);
-                    this.statusArea[role] = indicator;
-                    return indicator;
-                } catch (e) {
-                    console.error('[MultiPanel] Failed to create mirrored indicator for', role, ':', String(e));
-                    return null;
-                }
-            }
-            return null;
         }
 
+        return null;
+    },
+
+    _describeIndicatorRole(role) {
+        return getIndicatorDescriptor({
+            role,
+            source: Main.panel.statusArea?.[role] ?? null,
+        });
+    },
+
+    _createDedicatedIndicator(role, descriptor) {
+        const implementation = descriptor.implementation ?? role;
+        const constructor = this._panelItemImplementations[implementation];
+        if (!constructor)
+            return null;
+
+        let indicator;
         try {
             indicator = new constructor(this);
+            indicator._descriptor = descriptor;
         } catch (e) {
             console.error('[MultiPanel] Error creating indicator for', role, ':', String(e));
             throw e;
@@ -150,13 +170,6 @@ const indicatorSupportMethods = {
         if (!mainPanel || !mainPanel.statusArea)
             return;
 
-        const excludedIndicators = [
-            'screenRecording',
-            'screencast',
-            'remoteAccess',
-            'unsafeModeIndicator',
-        ];
-
         const groupedIndicators = {
             [PanelSettings.PANEL_BOX_LEFT]: [],
             [PanelSettings.PANEL_BOX_CENTER]: [],
@@ -172,11 +185,11 @@ const indicatorSupportMethods = {
         const canMirrorRole = role => {
             if (!PanelSettings.isPersistentRole(role))
                 return false;
-            if (excludedIndicators.includes(role))
-                return false;
             if (isTransferredRole(role))
                 return false;
-            return true;
+
+            const descriptor = this._describeIndicatorRole(role);
+            return isRoutableDescriptor(descriptor);
         };
 
         const findRoleForChild = child => {
@@ -331,15 +344,6 @@ const indicatorSupportMethods = {
         }
     },
 
-    _findRoleByPattern(pattern) {
-        try {
-            const keys = Object.keys(Main.panel.statusArea || {});
-            return keys.find(k => pattern.test(k)) || null;
-        } catch (_e) {
-            return null;
-        }
-    },
-
     _getRoleForBoxChild(child) {
         if (!child)
             return null;
@@ -453,8 +457,6 @@ const indicatorSupportMethods = {
             return indicator._clockDisplay;
         if (indicator?._quickSettingsContainer)
             return indicator._quickSettingsContainer;
-        if (indicator?._favoritesContainer)
-            return indicator._favoritesContainer;
         if (indicator?._iconContainer)
             return indicator._iconContainer;
         if (indicator?._activitiesCloneContainer)

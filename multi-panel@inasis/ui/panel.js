@@ -373,11 +373,7 @@ const AuxiliaryPanel = GObject.registerClass(
             this._togglePanelIndicator(
                 role,
                 this._settings.get_boolean(SHOW_APP_MENU_ID),
-                () => {
-                    const indicator = new MultiPanelAppMenuButton(this);
-                    this.statusArea[role] = indicator;
-                    return indicator;
-                }
+                () => this._ensureIndicator(role)
             );
         }
 

@@ -30,20 +30,30 @@ const interactionSupportMethods = {
             return Clutter.EVENT_STOP;
         }
 
+        if (this._isDescriptorKind?.('hidden', 'missing', 'unsupported'))
+            return Clutter.EVENT_PROPAGATE;
+
         if (this._handleDirectIndicatorAction())
             return Clutter.EVENT_STOP;
 
-        if (this._sourceIndicator && this._sourceIndicator.menu)
+        if (this._sourceIndicator &&
+            this._sourceIndicator.menu &&
+            this._isDescriptorKind?.('menu-forward'))
             return this._openMirroredMenu();
 
         if (this._sourceIndicator) {
-            if (typeof this._sourceIndicator.toggleMenu === 'function')
+            if (this._hasCapability?.('custom-menu-toggle') &&
+                typeof this._sourceIndicator.toggleMenu === 'function')
                 return this._openArcMenu();
 
-            if (this._sourceIndicator.arcMenu && typeof this._sourceIndicator.arcMenu.toggle === 'function')
+            if (this._hasCapability?.('custom-menu-toggle') &&
+                this._sourceIndicator.arcMenu &&
+                typeof this._sourceIndicator.arcMenu.toggle === 'function')
                 return this._openArcMenu();
 
-            if (this._sourceIndicator._menuButton && typeof this._sourceIndicator._menuButton.toggleMenu === 'function')
+            if (this._hasCapability?.('custom-menu-toggle') &&
+                this._sourceIndicator._menuButton &&
+                typeof this._sourceIndicator._menuButton.toggleMenu === 'function')
                 return this._openArcMenu();
 
             const customMenus = [
@@ -54,12 +64,14 @@ const interactionSupportMethods = {
             ];
 
             for (const menuName of customMenus) {
-                if (this._sourceIndicator[menuName]?.toggle)
+                if (this._hasCapability?.('custom-menu-toggle') &&
+                    this._sourceIndicator[menuName]?.toggle)
                     return this._openCustomPopupMenu(this._sourceIndicator[menuName]);
             }
 
-            if (typeof this._sourceIndicator?.clicked === 'function' ||
-                this._sourceIndicator instanceof St.Button)
+            if (this._isDescriptorKind?.('activation-forward') ||
+                this._hasCapability?.('click') ||
+                this._hasCapability?.('interaction-forward'))
                 return this._forwardClickToSource();
         }
 
@@ -70,11 +82,19 @@ const interactionSupportMethods = {
         if (!this._sourceIndicator)
             return false;
 
-        const directActions = this._role === 'screenRecording' || this._role === 'screencast'
-            ? ['stop', '_stop', 'stopRecording', '_stopRecording', 'stopScreencast', '_stopScreencast']
-            : this._role === 'screenSharing'
-                ? ['stop', '_stop', 'stopSharing', '_stopSharing']
-                : [];
+        if (!this._hasCapability?.('direct-action'))
+            return false;
+
+        const directActions = [
+            'stop',
+            '_stop',
+            'stopRecording',
+            '_stopRecording',
+            'stopScreencast',
+            '_stopScreencast',
+            'stopSharing',
+            '_stopSharing',
+        ];
 
         const action = this._findDirectActionTarget(directActions);
         if (action) {
@@ -85,12 +105,7 @@ const interactionSupportMethods = {
             }
         }
 
-        if (this._role === 'screenRecording' ||
-            this._role === 'screencast' ||
-            this._role === 'screenSharing')
-            return this._forwardClickToSource() === Clutter.EVENT_STOP;
-
-        return false;
+        return this._forwardClickToSource() === Clutter.EVENT_STOP;
     },
 
     _forwardClickToSource() {
@@ -98,14 +113,7 @@ const interactionSupportMethods = {
 
         try {
             const clickableTarget = this._findClickableTarget();
-            if (typeof clickableTarget?.clicked === 'function') {
-                clickableTarget.clicked();
-            } else if (typeof clickableTarget?.toggle === 'function') {
-                clickableTarget.toggle();
-            } else if (clickableTarget instanceof St.Button &&
-                typeof clickableTarget?.emit === 'function') {
-                clickableTarget.emit('clicked');
-            } else {
+            if (!this._invokeForwardedClick(clickableTarget)) {
                 this._setButtonActive(false);
                 return Clutter.EVENT_PROPAGATE;
             }
@@ -120,6 +128,52 @@ const interactionSupportMethods = {
         });
 
         return Clutter.EVENT_STOP;
+    },
+
+    _invokeForwardedClick(target) {
+        const attempts = [
+            {
+                canRun: () => typeof this._sourceIndicator?.activate === 'function',
+                run: () => this._sourceIndicator.activate(),
+            },
+            {
+                canRun: () => typeof target?.activate === 'function',
+                run: () => target.activate(),
+            },
+            {
+                canRun: () => typeof target?.clicked === 'function',
+                run: () => target.clicked(),
+            },
+            {
+                canRun: () => typeof target?.toggle === 'function',
+                run: () => target.toggle(),
+            },
+            {
+                canRun: () => typeof target?.emit === 'function',
+                run: () => target.emit('clicked'),
+            },
+            {
+                canRun: () => typeof target?.emit === 'function',
+                run: () => target.emit('button-press-event', null),
+            },
+            {
+                canRun: () => typeof target?.emit === 'function',
+                run: () => target.emit('button-release-event', null),
+            },
+        ];
+
+        for (const attempt of attempts) {
+            if (!attempt.canRun())
+                continue;
+
+            try {
+                attempt.run();
+                return true;
+            } catch (_e) {
+            }
+        }
+
+        return false;
     },
 
     _resolveArcMenuToggle() {
@@ -353,20 +407,16 @@ const interactionSupportMethods = {
         this._isDestroying = true;
 
         [
-            '_clockUpdateId',
             '_forwardClickTimeoutId',
             '_iconSyncId',
             '_labelSyncId',
             '_arcMenuTimeoutId',
             '_lockSizeTimeoutId',
-            '_monitorTimeoutId',
-            '_qsInitialSyncId',
+            '_proxyActivationBlockTimeoutId',
             '_sizeDebounceId',
         ].forEach(timeoutKey => this._clearTimeoutKey(timeoutKey));
 
         this._disconnectSignal(Main.overview, '_overviewShowingId');
-        this._disconnectSignal(global.display, '_fullscreenChangedId');
-        this._disconnectSignal(this._quickSettingsSource, '_sourceSizeChangedId');
 
         this._cleanupAllocationSyncedClones();
         this._cleanupSourceVisibilityTracking();

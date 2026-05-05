@@ -20,8 +20,9 @@ import GLib from 'gi://GLib';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import * as PanelSettings from '../services/settings.js';
+import * as PanelSettings from './settings.js';
 import { installStatusIndicatorsCatalogSupport } from './indicatorCatalog.js';
+import { getIndicatorDescriptor, isRoutableDescriptor } from './indicatorRouter.js';
 
 export class StatusIndicatorsController {
     constructor(settings) {
@@ -134,7 +135,17 @@ export class StatusIndicatorsController {
 
     _getPersistentStatusRoles() {
         return Object.keys(Main.panel.statusArea || {})
-            .filter(role => PanelSettings.isPersistentRole(role));
+            .filter(role => PanelSettings.isPersistentRole(role))
+            .filter(role => this._isRoutableStatusRole(role));
+    }
+
+    _isRoutableStatusRole(role) {
+        const descriptor = getIndicatorDescriptor({
+            role,
+            source: Main.panel.statusArea?.[role] ?? null,
+        });
+
+        return isRoutableDescriptor(descriptor);
     }
 
     _forEachPersistentStatusIndicator(callback) {

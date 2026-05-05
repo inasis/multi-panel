@@ -26,10 +26,9 @@ import Graphene from 'gi://Graphene';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as Util from 'resource:///org/gnome/shell/misc/util.js';
-import * as Constants from '../services/settings.js';
-import { DIRECT_SYNC_ROLES } from './indicatorRoles.js';
 import { installMirroredIndicatorCloneSupport } from './indicatorMirrorClone.js';
 import { installMirroredIndicatorInteractionSupport } from './indicatorMirrorMenu.js';
+import { getIndicatorDescriptor } from '../services/indicatorRouter.js';
 
 const INACTIVE_WORKSPACE_DOT_SCALE = 0.75;
 
@@ -171,21 +170,23 @@ const MultiPanelWorkspaceIndicators = GObject.registerClass(
 
 export const MirroredIndicatorButton = GObject.registerClass(
     class MirroredIndicatorButton extends PanelMenu.Button {
-        _init(panel, role) {
+        _init(panel, role, descriptor = null) {
             super._init(0.0, null, false);
 
             this._role = role;
             this._panel = panel;
+            this._descriptor = descriptor;
             this._isDestroying = false;
             this.add_style_class_name('mm-mirrored-indicator');
 
             // Ensure cleanup happens when the underlying Clutter object is destroyed
             // This captures cases where mmpanel implicitly destroys children
             this.connect('destroy', this._cleanup.bind(this));
-            this.connect('button-press-event', () => {
-                this._onButtonPress();
-                return Clutter.EVENT_STOP;
-            });
+            this.connect('button-press-event', () => this._activateProxy());
+            try {
+                this.connect('clicked', () => this._activateProxy());
+            } catch (_e) {
+            }
 
             if (role === 'activities') {
                 this._initActivitiesButton();
@@ -229,59 +230,41 @@ export const MirroredIndicatorButton = GObject.registerClass(
                 .join('; ');
         }
 
-        // Role predicates
-        _isQuickSettingsRole() {
-            return this._role === 'quickSettings';
-        }
-
-        // Role predicates;Use DIRECT_SYNC_ROLES in indicatorRoles
         _isDirectSyncRole() {
-            return DIRECT_SYNC_ROLES.has(this._role);
+            return this._descriptor?.capabilities?.has('direct-action') ||
+                this._role === 'keyboard';
         }
 
-        // Quick Settings helpers 
-        _getQuickSettingsGap() {
-            const settings = this._panel?._settings;
-            return settings ? Constants.getQuickSettingsGap(settings) : 0;
+        _hasCapability(capability) {
+            return this._descriptor?.capabilities?.has(capability) ?? false;
         }
 
-        _getQuickSettingsGapStyle() {
-            return `spacing: ${this._getQuickSettingsGap()}px;`;
+        _isDescriptorKind(...kinds) {
+            return kinds.includes(this._descriptor?.kind);
         }
 
-        _getQuickSettingsItemPaddingStyle() {
-            const gap = this._getQuickSettingsGap();
-            return `padding-left: ${gap}px; padding-right: ${gap}px;`;
+        _activateProxy() {
+            if (this._proxyActivationBlocked)
+                return Clutter.EVENT_STOP;
+
+            this._proxyActivationBlocked = true;
+            this._replaceTimeout('_proxyActivationBlockTimeoutId', 75, () => {
+                this._proxyActivationBlocked = false;
+                return GLib.SOURCE_REMOVE;
+            });
+
+            return this._onButtonPress?.() ?? Clutter.EVENT_STOP;
         }
 
-        _applyQuickSettingsIndicatorPadding(padding) {
-            if (!this._isQuickSettingsRole())
-                return;
-
-            const value = Number.isFinite(padding) ? Math.max(0, Math.round(padding)) : 0;
-
-            if (this._quickSettingsPaddingLeft)
-                this._quickSettingsPaddingLeft.width = value;
-
-            if (this._quickSettingsPaddingRight)
-                this._quickSettingsPaddingRight.width = value;
-        }
-
-        _applyContainerSpacing(container, gap) {
-            if (!container)
-                return;
-
-            if ('spacing' in container)
-                container.spacing = gap;
+        _usesDirectLabelSync() {
+            return this._isDirectSyncRole() ||
+                this._isDescriptorKind('menu-forward', 'activation-forward', 'simple-visual');
         }
 
         // Widget sync helpers
         _applyMirroredWidgetStyle(widget, sourceWidget = null) {
             const sourceStyle = sourceWidget ? this._getMirroredSourceInlineStyle(sourceWidget) : '';
-            const extraStyle = this._isQuickSettingsRole()
-                ? `${sourceStyle || ''} ${this._getQuickSettingsItemPaddingStyle()}`.trim()
-                : (sourceStyle || '');
-            this._applyZeroSpacingStyle(widget, extraStyle);
+            this._applyZeroSpacingStyle(widget, sourceStyle || '');
         }
 
         _ensureTrackedWidgetSignals() {
@@ -542,11 +525,24 @@ export const MirroredIndicatorButton = GObject.registerClass(
 
         _initGenericIndicator(role) {
             this._sourceIndicator = Main.panel.statusArea[role] || null;
+            this._descriptor ??= getIndicatorDescriptor({
+                role,
+                source: this._sourceIndicator,
+            });
+
+            if (this._descriptor.kind === 'missing' ||
+                this._descriptor.kind === 'unsupported' ||
+                this._descriptor.kind === 'hidden') {
+                this._isEmpty = true;
+                this.visible = false;
+                return;
+            }
 
             if (this._sourceIndicator) {
-                const sourceChild = this._sourceIndicator.get_first_child();
+                const sourceChild = this._getSourceVisualActor();
                 if (!this._hasVisibleSourceContent(sourceChild)) {
-                    if (this._isDirectSyncRole()) {
+                    if (this._isDescriptorKind('activation-forward', 'clone-only') ||
+                        this._isDirectSyncRole()) {
                         this._createIndicatorClone();
                         this.visible = false;
                         this._trackSourceVisibility(sourceChild);
@@ -561,8 +557,18 @@ export const MirroredIndicatorButton = GObject.registerClass(
                 this._createIndicatorClone();
                 this._trackSourceVisibility(sourceChild);
             } else {
-                this._createFallbackIcon();
+                this._isEmpty = true;
+                this.visible = false;
             }
+        }
+
+        _getSourceVisualActor() {
+            if (!this._sourceIndicator)
+                return null;
+
+            return this._sourceIndicator.get_first_child?.() ??
+                this._descriptor?.actor ??
+                null;
         }
 
         // Source visibility tracking
@@ -570,7 +576,7 @@ export const MirroredIndicatorButton = GObject.registerClass(
             if (!this._sourceIndicator)
                 return false;
 
-            const child = sourceChild ?? this._sourceIndicator.get_first_child();
+            const child = sourceChild ?? this._getSourceVisualActor();
             if (!child)
                 return false;
 
@@ -608,7 +614,7 @@ export const MirroredIndicatorButton = GObject.registerClass(
             this._sourceVisibleId = this._sourceIndicator.connect('notify::visible',
                 this._syncSourceVisibility.bind(this));
 
-            const child = sourceChild ?? this._sourceIndicator.get_first_child();
+            const child = sourceChild ?? this._getSourceVisualActor();
             if (!child)
                 return;
 
@@ -634,82 +640,13 @@ export const MirroredIndicatorButton = GObject.registerClass(
         // Clone creation
         _createIndicatorClone() {
             try {
-                const sourceChild = this._sourceIndicator.get_first_child();
+                const sourceChild = this._getSourceVisualActor();
                 if (!sourceChild) {
-                    this._createFallbackIcon();
+                    this._isEmpty = true;
+                    this.visible = false;
                     return;
                 }
 
-                // 1. Quick Settings
-                if (this._isQuickSettingsRole()) {
-                    this.add_style_class_name('mm-quick-settings');
-                    // Use FILL for full panel height hover detection
-                    this.y_expand = true;
-                    this.y_align = Clutter.ActorAlign.FILL;
-                    const container = new St.BoxLayout({
-                        style_class: 'mm-quick-settings-box',
-                        y_align: Clutter.ActorAlign.FILL,
-                        y_expand: true,
-                    });
-                    this._applyZeroSpacingStyle(container);
-
-                    const leftSpacer = new St.Widget({ reactive: false, width: 0 });
-                    const content = new St.BoxLayout({
-                        y_align: Clutter.ActorAlign.FILL,
-                        y_expand: true,
-                    });
-                    const rightSpacer = new St.Widget({ reactive: false, width: 0 });
-
-                    this._applyContainerSpacing(content, this._getQuickSettingsGap());
-                    this._applyZeroSpacingStyle(content, this._getQuickSettingsGapStyle());
-
-                    container.add_child(leftSpacer);
-                    container.add_child(content);
-                    container.add_child(rightSpacer);
-
-                    this._quickSettingsOuterContainer = container;
-                    this._quickSettingsPaddingLeft = leftSpacer;
-                    this._quickSettingsPaddingRight = rightSpacer;
-
-                    this._createStaticIconCopy(content, sourceChild);
-                    this.add_child(container);
-                    return;
-                }
-
-                // 2. Date menu
-                if (this._role === 'dateMenu') {
-                    const container = new St.BoxLayout({
-                        style_class: sourceChild.get_style_class_name?.() || 'clock-display-box',
-                        y_align: Clutter.ActorAlign.FILL,
-                        y_expand: true,
-                    });
-                    this._applyZeroSpacingStyle(container);
-                    this._createAllocationSyncedClone(container, sourceChild, 'dateMenu');
-                    this.add_child(container);
-                    return;
-                }
-
-                // 3. Favorites menu
-                if (this._role === 'favorites-menu' ||
-                    (this._role && (
-                        this._role.toLowerCase().includes('favorites') ||
-                        this._role.toLowerCase().includes('favorite')
-                    ))) {
-                    this.add_style_class_name('mm-favorites-menu');
-                    this.y_expand = true;
-                    this.y_align = Clutter.ActorAlign.FILL;
-                    const container = new St.BoxLayout({
-                        style_class: 'mm-favorites-menu-box',
-                        y_align: Clutter.ActorAlign.FILL,
-                        y_expand: true,
-                    });
-                    this._applyZeroSpacingStyle(container);
-                    this._createFillClone(container, sourceChild);
-                    this.add_child(container);
-                    return;
-                }
-
-                // 4. Direct sync roles (keyboard, screenSharing, screenRecording, screencast)
                 if (this._isDirectSyncRole()) {
                     const container = new St.BoxLayout({
                         style_class: sourceChild.get_style_class_name?.() || 'panel-status-menu-box',
@@ -724,7 +661,33 @@ export const MirroredIndicatorButton = GObject.registerClass(
                     return;
                 }
 
-                // 5. Generic
+                if (this._isDescriptorKind('simple-visual', 'menu-forward', 'activation-forward')) {
+                    const container = new St.BoxLayout({
+                        style_class: sourceChild.get_style_class_name?.() || 'panel-status-menu-box',
+                        x_align: Clutter.ActorAlign.CENTER,
+                        y_align: Clutter.ActorAlign.CENTER,
+                        y_expand: false,
+                        reactive: false,
+                    });
+                    this._applyZeroSpacingStyle(container);
+                    this._createStaticIconCopy(container, sourceChild);
+                    this.add_child(container);
+                    return;
+                }
+
+                if (this._isDescriptorKind('clone-only')) {
+                    const container = new St.BoxLayout({
+                        style_class: sourceChild.get_style_class_name?.() || 'panel-status-menu-box',
+                        x_align: Clutter.ActorAlign.CENTER,
+                        y_align: Clutter.ActorAlign.CENTER,
+                        y_expand: false,
+                    });
+                    this._applyZeroSpacingStyle(container);
+                    this._createAllocationSyncedClone(container, sourceChild, `clone-only:${this._role ?? 'generic'}`);
+                    this.add_child(container);
+                    return;
+                }
+
                 if (sourceChild instanceof St.BoxLayout) {
                     // Container is FILL to get full-height hover, but clone inside is centered
                     const container = new St.BoxLayout({
@@ -741,7 +704,8 @@ export const MirroredIndicatorButton = GObject.registerClass(
 
             } catch (e) {
                 console.debug('[MultiPanel] Failed to create mirrored indicator:', String(e));
-                this._createFallbackIcon();
+                this._isEmpty = true;
+                this.visible = false;
             }
         }
 

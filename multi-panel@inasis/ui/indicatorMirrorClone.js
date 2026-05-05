@@ -20,115 +20,17 @@ import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
 
-import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import { SYNC_APPEARANCE_ROLES } from './indicatorRoles.js';
-
 const cloneSupportMethods = {
-
-    // Clock
-    _createClockDisplay(container) {
-        const clockDisplay = new St.Label({
-            style_class: 'clock',
-            y_align: Clutter.ActorAlign.CENTER,
-        });
-        this._applyZeroSpacingStyle(clockDisplay);
-
-        const updateClock = () => {
-            if (this._sourceIndicator._clockDisplay)
-                clockDisplay.text = this._sourceIndicator._clockDisplay.text;
-        };
-
-        updateClock();
-
-        if (this._clockUpdateId) {
-            GLib.source_remove(this._clockUpdateId);
-            this._clockUpdateId = null;
-        }
-
-        this._clockUpdateId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 1, () => {
-            try {
-                updateClock();
-                return GLib.SOURCE_CONTINUE;
-            } catch (_e) {
-                this._clockUpdateId = null;
-                return GLib.SOURCE_REMOVE;
-            }
-        });
-
-        container.add_child(clockDisplay);
-        this._clockDisplay = clockDisplay;
-    },
 
     // Clone factory
     _createSimpleClone(parent, source) {
-        const problematicExtensions = [
-            'tiling', 'tilingshell', 'forge', 'pop-shell',
-            'system-monitor', 'system_monitor', 'vitals', 'tophat', 'astra-monitor',
-            'appindicator', 'ubuntu-appindicator', 'kstatusnotifier', 'tray',
-            'arcmenu', 'arc-menu', 'arc',
-        ];
-        const isProblematic = problematicExtensions.some(name =>
-            this._role && this._role.toLowerCase().includes(name)
-        );
-
-        if (isProblematic) {
+        if (this._isDescriptorKind?.('simple-visual', 'menu-forward', 'activation-forward') ||
+            this._hasCapability?.('external')) {
             this._createStaticIconCopy(parent, source);
             return;
         }
 
         this._createAllocationSyncedClone(parent, source, `simple:${this._role ?? 'generic'}`);
-    },
-
-    _createQuickSettingsClone(parent, source) {
-        const clone = new Clutter.Clone({ source });
-
-        parent.add_child(clone);
-
-        this._quickSettingsClone = clone;
-        this._quickSettingsSource = source;
-        this._quickSettingsContainer = parent;
-        this._lastSourceW = 0;
-        this._lastSourceH = 0;
-
-        const syncSize = () => {
-            if (!this._quickSettingsSource || !this._quickSettingsClone)
-                return;
-            try {
-                const alloc = this._quickSettingsSource.get_allocation_box();
-                const w = alloc.get_width();
-                const h = alloc.get_height();
-
-                if (w > 0 && h > 0 &&
-                    (Math.abs(w - this._lastSourceW) > 0.5 ||
-                        Math.abs(h - this._lastSourceH) > 0.5)) {
-                    this._lastSourceW = w;
-                    this._lastSourceH = h;
-                    this._quickSettingsClone.set_size(w, h);
-                }
-            } catch (_e) {
-            }
-        };
-
-        if (this._sourceSizeChangedId && this._quickSettingsSource) {
-            this._quickSettingsSource.disconnect(this._sourceSizeChangedId);
-            this._sourceSizeChangedId = null;
-        }
-
-        this._sourceSizeChangedId = source.connect('notify::allocation', syncSize);
-
-        this._qsInitialSyncId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 250, () => {
-            try {
-                syncSize();
-            } catch (_e) {
-            }
-            this._qsInitialSyncId = null;
-            return GLib.SOURCE_REMOVE;
-        });
-
-        this._fullscreenChangedId = global.display.connect(
-            'in-fullscreen-changed',
-            this._onQuickSettingsFullscreenChanged.bind(this)
-        );
     },
 
     _createAllocationSyncedClone(parent, source, kind = 'generic') {
@@ -191,115 +93,30 @@ const cloneSupportMethods = {
         });
     },
 
-    _onQuickSettingsFullscreenChanged() {
-        if (!this._quickSettingsClone)
-            return;
-        this._quickSettingsClone.queue_relayout();
-    },
-
-    // Size monitoring
-    _applyNormalMode() {
-    },
-
-    _applyOverviewMode() {
-    },
-
-    _monitorSize(duration) {
-        if (this._monitorTimeoutId) {
-            GLib.source_remove(this._monitorTimeoutId);
-            this._monitorTimeoutId = null;
-        }
-
-        const startTime = GLib.get_monotonic_time();
-        const endTime = startTime + duration * 1000;
-
-        const checkSize = () => {
-            try {
-                if (!this._quickSettingsSource)
-                    return GLib.SOURCE_REMOVE;
-
-                const [minW, natW] = this._quickSettingsSource.get_preferred_width(-1);
-                const [actW] = this._quickSettingsSource.get_size();
-                const sourceWidth = Math.max(natW, minW, actW);
-
-                if (sourceWidth > (this._cachedWidth || 0))
-                    this._cachedWidth = sourceWidth;
-
-                if (GLib.get_monotonic_time() > endTime) {
-                    this._monitorTimeoutId = null;
-                    return GLib.SOURCE_REMOVE;
-                }
-
-                return GLib.SOURCE_CONTINUE;
-            } catch (_e) {
-                this._monitorTimeoutId = null;
-                return GLib.SOURCE_REMOVE;
-            }
-        };
-
-        this._monitorTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, checkSize);
-    },
-
-    _onSourceWidthChanged() {
-        if (this._widthLocked)
-            return;
-
-        if (!this._monitorTimeoutId)
-            this._monitorSize(500);
-    },
-
-    _detectAndLockWidth() {
-    },
-
-    _isPrimaryMonitorFullscreen() {
-        const primaryIndex = Main.layoutManager.primaryIndex;
-        const windows = global.get_window_actors();
-
-        for (const actor of windows) {
-            const metaWindow = actor.get_meta_window();
-            if (metaWindow &&
-                metaWindow.is_fullscreen() &&
-                metaWindow.get_monitor() === primaryIndex)
-                return true;
-        }
-        return false;
-    },
-
     // Static icon copy
     _createStaticIconCopy(parent, source) {
-        const container = this._isQuickSettingsRole()
-            ? parent
-            : new St.BoxLayout({
-                style_class: 'panel-status-menu-box',
-                x_align: Clutter.ActorAlign.CENTER,
-                y_align: Clutter.ActorAlign.CENTER,
-                y_expand: false,
-                reactive: false,
-            });
-
-        if (this._isQuickSettingsRole()) {
-            this._applyContainerSpacing(container, this._getQuickSettingsGap());
-            this._applyZeroSpacingStyle(container, this._getQuickSettingsGapStyle());
-        } else {
-            this._applyZeroSpacingStyle(container);
-        }
+        const container = new St.BoxLayout({
+            style_class: 'panel-status-menu-box',
+            x_align: Clutter.ActorAlign.CENTER,
+            y_align: Clutter.ActorAlign.CENTER,
+            y_expand: false,
+            reactive: false,
+        });
+        this._applyZeroSpacingStyle(container);
 
         this._copyIconsFromSource(container, source);
         if (this._shouldSyncRoleContainerAppearance())
             this._syncMirroredContainerAppearance(container, source);
-        if (!this._isQuickSettingsRole())
-            parent.add_child(container);
+        parent.add_child(container);
         this._iconContainer = container;
         this._iconSource = source;
-        if (this._isQuickSettingsRole())
-            this._quickSettingsContainer = container;
 
         this._startIconSync();
     },
 
     // Role predicates (delegating to shared constants)
     _shouldSyncRoleContainerAppearance() {
-        return SYNC_APPEARANCE_ROLES.has(this._role);
+        return this._hasCapability?.('appearance-sync') ?? false;
     },
 
     _getMirroredSourceInlineStyle(widget) {
@@ -428,7 +245,7 @@ const cloneSupportMethods = {
 
     // Action target finders
     _findDirectActionTarget(actionNames) {
-        const target = this._findPreferredRoleActor(this._sourceIndicator, actor =>
+        const target = this._findForwardTarget(actor =>
             actionNames.some(actionName => typeof actor[actionName] === 'function'));
         if (!target)
             return null;
@@ -438,10 +255,40 @@ const cloneSupportMethods = {
     },
 
     _findClickableTarget() {
-        return this._findPreferredRoleActor(this._sourceIndicator, actor =>
+        return this._findForwardTarget(actor =>
+            typeof actor?.activate === 'function' ||
             typeof actor?.clicked === 'function' ||
+            typeof actor?.toggle === 'function' ||
             actor instanceof St.Button ||
             actor.reactive === true);
+    },
+
+    _findForwardTarget(predicate) {
+        let bestTarget = null;
+        let bestDepth = -1;
+
+        for (const root of this._getForwardSearchRoots()) {
+            const target = this._findPreferredRoleActor(root, predicate);
+            if (!target)
+                continue;
+
+            const depth = this._getActorDepth(target);
+            if (depth > bestDepth) {
+                bestTarget = target;
+                bestDepth = depth;
+            }
+        }
+
+        return bestTarget;
+    },
+
+    _getForwardSearchRoots() {
+        return [
+            this._sourceIndicator,
+            this._sourceIndicator?.container,
+            this._descriptor?.actor,
+        ].filter((actor, index, actors) =>
+            actor && actors.indexOf(actor) === index);
     },
 
     // Signal tracking
@@ -632,53 +479,6 @@ const cloneSupportMethods = {
         }
     },
 
-    // Fill clone
-    _createFillClone(parent, source) {
-        const container = new St.BoxLayout({
-            style_class: source.get_style_class_name ? source.get_style_class_name() : 'panel-status-menu-box',
-            x_align: Clutter.ActorAlign.CENTER,
-            y_align: Clutter.ActorAlign.CENTER,
-            y_expand: true,
-            reactive: false,
-        });
-        this._applyZeroSpacingStyle(container);
-
-        const icon = this._findIconInActor(source);
-        const iconCopy = new St.Icon({
-            gicon: icon?.gicon ?? null,
-            icon_name: icon?.icon_name || 'starred-symbolic',
-            icon_size: icon?.icon_size || 16,
-            style_class: icon?.get_style_class_name?.() || 'system-status-icon',
-            y_align: Clutter.ActorAlign.CENTER,
-        });
-        this._applyZeroSpacingStyle(iconCopy);
-        container.add_child(iconCopy);
-
-        parent.add_child(container);
-        this._favoritesContainer = container;
-    },
-
-    _findIconInActor(actor) {
-        if (actor instanceof St.Icon)
-            return actor;
-        const children = actor.get_children ? actor.get_children() : [];
-        for (const child of children) {
-            const found = this._findIconInActor(child);
-            if (found)
-                return found;
-        }
-        return null;
-    },
-
-    // Fallback
-    _createFallbackIcon() {
-        const label = new St.Label({
-            text: '⚙',
-            y_align: Clutter.ActorAlign.CENTER,
-        });
-        this._applyZeroSpacingStyle(label);
-        this.add_child(label);
-    },
 };
 
 export function installMirroredIndicatorCloneSupport(prototype) {
