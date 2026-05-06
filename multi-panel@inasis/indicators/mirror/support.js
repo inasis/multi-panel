@@ -40,6 +40,7 @@ const cloneSupportMethods = {
         const clone = new Clutter.Clone({
             source,
             y_align: Clutter.ActorAlign.CENTER,
+            reactive: false,
         });
         clone.visible = false;
 
@@ -258,6 +259,9 @@ const cloneSupportMethods = {
     },
 
     _findClickableTarget() {
+        if (this._hasCapability?.('prefer-source-root-click'))
+            return this._findSourceRootClickTarget();
+
         return this._findForwardTarget(actor =>
             typeof actor?.activate === 'function' ||
             typeof actor?.clicked === 'function' ||
@@ -268,6 +272,29 @@ const cloneSupportMethods = {
             typeof actor?._onButtonPress === 'function' ||
             actor instanceof St.Button ||
             actor.reactive === true);
+    },
+
+    _findSourceRootClickTarget() {
+        return [
+            this._sourceIndicator,
+            this._sourceIndicator?.container,
+            this._sourceIndicator?.actor,
+            this._sourceIndicator?.button,
+            this._sourceIndicator?._button,
+            this._sourceIndicator?._menuButton,
+            this._descriptor?.actor,
+        ].find(actor =>
+            actor && (
+                typeof actor.activate === 'function' ||
+                typeof actor.clicked === 'function' ||
+                typeof actor.toggle === 'function' ||
+                typeof actor.openMenu === 'function' ||
+                typeof actor.toggleMenu === 'function' ||
+                typeof actor._onClicked === 'function' ||
+                typeof actor._onButtonPress === 'function' ||
+                actor instanceof St.Button ||
+                actor.reactive === true
+            )) ?? null;
     },
 
     _findForwardTarget(predicate) {
@@ -509,6 +536,14 @@ const interactionSupportMethods = {
 
         if (this._sourceIndicator &&
             this._isDescriptorKind?.('menu-forward')) {
+            if (this._hasCapability?.('prefer-source-click')) {
+                const clickResult = this._forwardClickToSource();
+                const menu = this._resolveForwardedMenu();
+                if (clickResult === Clutter.EVENT_STOP &&
+                    (!menu || this._isMenuOpen(menu)))
+                    return clickResult;
+            }
+
             const result = this._openForwardedMenu();
             if (result === Clutter.EVENT_STOP)
                 return result;
@@ -583,6 +618,26 @@ const interactionSupportMethods = {
         const currentEvent = Clutter.get_current_event?.() ?? null;
         const attempts = [
             {
+                canRun: () => this._hasCapability?.('prefer-source-event') &&
+                    typeof target?.event === 'function' && currentEvent,
+                run: () => target.event(currentEvent, false),
+            },
+            {
+                canRun: () => this._hasCapability?.('prefer-source-event') &&
+                    typeof target?.emit === 'function' && currentEvent,
+                run: () => target.emit('button-press-event', currentEvent),
+            },
+            {
+                canRun: () => this._hasCapability?.('prefer-source-event') &&
+                    typeof this._sourceIndicator?.event === 'function' && currentEvent,
+                run: () => this._sourceIndicator.event(currentEvent, false),
+            },
+            {
+                canRun: () => this._hasCapability?.('prefer-source-event') &&
+                    typeof this._sourceIndicator?.emit === 'function' && currentEvent,
+                run: () => this._sourceIndicator.emit('button-press-event', currentEvent),
+            },
+            {
                 canRun: () => typeof this._sourceIndicator?.activate === 'function',
                 run: () => this._sourceIndicator.activate(),
             },
@@ -641,8 +696,8 @@ const interactionSupportMethods = {
                 continue;
 
             try {
-                attempt.run();
-                return true;
+                if (attempt.run() !== false)
+                    return true;
             } catch (_e) {
             }
         }
@@ -857,8 +912,11 @@ const interactionSupportMethods = {
         this._setButtonActive(true);
         this._setMenuSourceActor(menu, this);
 
-        if (menuPositionActor)
-            menuBoxState = this._updateMenuPositioning(menu, monitorIndex);
+        if (menuPositionActor) {
+            menuBoxState = this._hasCapability?.('native-menu-position')
+                ? this._retargetMenuPositionActor(menuPositionActor)
+                : this._updateMenuPositioning(menu, monitorIndex);
+        }
 
         const lifecycleBound = this._bindMenuLifecycle(
             menu,
@@ -906,6 +964,21 @@ const interactionSupportMethods = {
         return menu?._boxPointer ?? menu?.box ?? menu?.actor ?? null;
     },
 
+    _retargetMenuPositionActor(menuPositionActor) {
+        const originalBoxPointer = menuPositionActor?._sourceActor;
+
+        try {
+            menuPositionActor._sourceActor = this;
+            menuPositionActor._sourceAllocation = null;
+        } catch (_e) {
+        }
+
+        return {
+            originalBoxPointer,
+            nativePositionOnly: true,
+        };
+    },
+
     _updateMenuPositioning(menu, monitorIndex) {
         const menuBox = this._getMenuPositionActor(menu);
         if (!menuBox)
@@ -937,10 +1010,17 @@ const interactionSupportMethods = {
         menuBox.setPosition = function (sourceActor, _alignment) {
             const [btnX, btnY] = sourceActor.get_transformed_position();
             const [btnW, btnH] = sourceActor.get_transformed_size();
-            const [menuW, menuH] = this.get_preferred_size();
-            const finalMenuW = menuW[1];
-            const [currW, currH] = this.get_size();
-            const finalMenuH = currH > 0 ? currH : menuH[1];
+            const [, , naturalMenuW, naturalMenuH] = this.get_preferred_size();
+            const [currentMenuW, currentMenuH] = this.get_size();
+            const finalMenuW = currentMenuW > 0 ? currentMenuW : naturalMenuW;
+            const finalMenuH = currentMenuH > 0 ? currentMenuH : naturalMenuH;
+
+            if (![btnX, btnY, monitor?.x, monitor?.y].every(Number.isFinite) ||
+                ![btnW, btnH, finalMenuW, finalMenuH, monitor?.width, monitor?.height]
+                    .every(value => Number.isFinite(value) && value > 0)) {
+                originalSetPosition?.call(this, sourceActor, _alignment);
+                return;
+            }
 
             let newX = btnX + btnW / 2 - finalMenuW / 2;
             let newY = btnY + btnH;
@@ -958,6 +1038,9 @@ const interactionSupportMethods = {
                 this.setArrowSide(St.Side.TOP);
             }
 
+            if (!Number.isFinite(newX) || !Number.isFinite(newY))
+                return;
+
             this.set_position(Math.round(newX), Math.round(newY));
         };
 
@@ -972,12 +1055,18 @@ const interactionSupportMethods = {
             this._setMenuSourceActor(menu, originalSourceActor);
 
         const menuPositionActor = this._getMenuPositionActor(menu);
-        if (menuPositionActor && originalBoxPointer)
-            menuPositionActor._sourceActor = originalBoxPointer;
+        if (menuPositionActor) {
+            if (menuBoxState?.nativePositionOnly) {
+                if (menuBoxState.originalBoxPointer)
+                    menuPositionActor._sourceActor = menuBoxState.originalBoxPointer;
+            } else if (originalBoxPointer) {
+                menuPositionActor._sourceActor = originalBoxPointer;
+            }
+        }
 
         this._restoreSourceIndicatorMenuState(sourceState);
 
-        if (menuPositionActor && menuBoxState) {
+        if (menuPositionActor && menuBoxState && !menuBoxState.nativePositionOnly) {
             if (menuBoxState.originalSetPosition)
                 menuPositionActor.setPosition = menuBoxState.originalSetPosition;
 

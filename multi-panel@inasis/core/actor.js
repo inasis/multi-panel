@@ -18,19 +18,13 @@ along with this program; if not, visit https://www.gnu.org/licenses/.
 
 import * as PanelSettings from './settings.js';
 
+const disposedActors = new WeakSet();
+
 export function isDisposedActor(actor) {
     if (!actor)
         return true;
 
-    if (actor._mmDisposed === true)
-        return true;
-
-    try {
-        void actor.visible;
-        return false;
-    } catch (_e) {
-        return true;
-    }
+    return disposedActors.has(actor);
 }
 
 export function isUsablePanel(panel) {
@@ -38,20 +32,27 @@ export function isUsablePanel(panel) {
         return false;
 
     try {
-        return panel._mmDisposed !== true && panel._isDestroying !== true;
+        return !isDisposedActor(panel) && panel._isDestroying !== true;
     } catch (_e) {
         return false;
     }
+}
+
+export function markActorDisposed(actor) {
+    if (actor)
+        disposedActors.add(actor);
 }
 
 export function trackActorDispose(actor) {
     if (!actor?.connect)
         return;
 
-    actor._mmDisposed = false;
-    actor.connect('destroy', () => {
-        actor._mmDisposed = true;
-    });
+    try {
+        actor.connect('destroy', () => {
+            disposedActors.add(actor);
+        });
+    } catch (_e) {
+    }
 }
 
 export function getIndicatorContainer(indicator) {

@@ -36,6 +36,7 @@ import {
     getActorChildren,
     isDisposedActor,
     isUsablePanel,
+    markActorDisposed,
     syncWidgetAppearance,
     trackActorDispose,
 } from '../core/actor.js';
@@ -82,7 +83,6 @@ const AuxiliaryPanel = GObject.registerClass(
             this._settings = settings;
             this._panelBoxWrapper = panelBox;
             this._panelItemImplementations = AUXILIARY_PANEL_ITEM_IMPLEMENTATIONS;
-            this._mmDisposed = false;
             this._isDestroying = false;
             trackActorDispose(this);
 
@@ -207,8 +207,8 @@ const AuxiliaryPanel = GObject.registerClass(
         }
 
         destroy() {
-            this._mmDisposed = true;
             this._isDestroying = true;
+            markActorDisposed(this);
 
             if (this._extensionStateChangedId) {
                 Main.extensionManager.disconnect(this._extensionStateChangedId);
@@ -284,7 +284,7 @@ const AuxiliaryPanel = GObject.registerClass(
             for (const actor of [this._leftBox, this._centerBox, this._centerBin, this._rightBox]) {
                 if (!actor)
                     continue;
-                actor._mmDisposed = true;
+                markActorDisposed(actor);
             }
 
             this._restoreAllIndicatorPadding();

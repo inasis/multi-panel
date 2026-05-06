@@ -290,7 +290,12 @@ const INDICATOR_RULES = [
         apply: descriptor => ({
             ...descriptor,
             kind: 'activation-forward',
-            capabilities: mergeCapabilities(descriptor, ['direct-action', 'appearance-sync']),
+            capabilities: mergeCapabilities(descriptor, [
+                'direct-action',
+                'appearance-sync',
+                'prefer-source-event',
+                'track-empty-source',
+            ]),
             layout: {
                 mainPanelPaddingTarget: 'container',
                 preserveMainPanelPadding: descriptor.role === 'screenRecording',
@@ -301,11 +306,16 @@ const INDICATOR_RULES = [
         match: descriptor => descriptor.role === 'keyboard',
         apply: descriptor => ({
             ...descriptor,
+            kind: 'menu-forward',
             layout: {
                 ...(descriptor.layout ?? {}),
                 mainPanelPaddingTarget: 'display-child',
             },
             capabilities: mergeCapabilities(descriptor, [
+                'menu-toggle',
+                'interaction-forward',
+                'native-menu-position',
+                'track-empty-source',
                 'ignore-source-style',
                 'ignore-source-visibility',
             ]),

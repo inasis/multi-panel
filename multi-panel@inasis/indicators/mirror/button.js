@@ -171,12 +171,15 @@ const MultiPanelWorkspaceIndicators = GObject.registerClass(
 export const MirroredIndicatorButton = GObject.registerClass(
     class MirroredIndicatorButton extends PanelMenu.Button {
         _init(panel, role, descriptor = null) {
-            super._init(0.0, null, false);
+            super._init(0.0, null, true);
 
             this._role = role;
             this._panel = panel;
             this._descriptor = descriptor;
             this._isDestroying = false;
+            this.reactive = true;
+            this.can_focus = true;
+            this.track_hover = true;
             this.add_style_class_name('mm-mirrored-indicator');
 
             // Ensure cleanup happens when the underlying Clutter object is destroyed
@@ -253,6 +256,17 @@ export const MirroredIndicatorButton = GObject.registerClass(
             });
 
             return this._onButtonPress?.() ?? Clutter.EVENT_STOP;
+        }
+
+        vfunc_button_press_event(event) {
+            return this._activateProxy(event);
+        }
+
+        vfunc_event(event) {
+            if (event.type() === Clutter.EventType.BUTTON_PRESS)
+                return this.vfunc_button_press_event(event);
+
+            return Clutter.EVENT_PROPAGATE;
         }
 
         _usesDirectLabelSync() {
@@ -520,6 +534,7 @@ export const MirroredIndicatorButton = GObject.registerClass(
                     x_align: Clutter.ActorAlign.CENTER,
                     y_align: Clutter.ActorAlign.CENTER,
                     y_expand: true,
+                    reactive: false,
                 });
                 this.add_child(container);
                 this.label_actor = container;
@@ -561,6 +576,13 @@ export const MirroredIndicatorButton = GObject.registerClass(
             if (this._sourceIndicator) {
                 const sourceChild = this._getSourceVisualActor();
                 if (!this._hasVisibleSourceContent(sourceChild)) {
+                    if (this._hasCapability('track-empty-source')) {
+                        this._createIndicatorClone();
+                        this.visible = false;
+                        this._trackSourceVisibility(sourceChild);
+                        return;
+                    }
+
                     this._isEmpty = true;
                     this.visible = false;
                     return;

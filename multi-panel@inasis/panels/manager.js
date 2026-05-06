@@ -27,6 +27,7 @@ import { AuxiliaryPanel } from './panel.js';
 import { StatusIndicatorsController } from '../indicators/controller.js';
 import {
 	isDisposedActor,
+	markActorDisposed,
 	removeActorFromParent,
 	trackActorDispose,
 } from '../core/actor.js';
@@ -38,8 +39,8 @@ function getMonitorId(index, monitor) {
 	return `i${index}x${monitor.x}y${monitor.y}w${monitor.width}h${monitor.height}`;
 }
 
-function disconnectSignal(source, signalId) {
-	if (!source || !signalId)
+function disconnectSignal(source, signalId, skip = false) {
+	if (!source || !signalId || skip)
 		return;
 
 	try {
@@ -71,7 +72,7 @@ class AuxiliaryPanelBox {
 	destroy() {
 		this._clearBackgroundClones();
 		if (!isDisposedActor(this.panelBox)) {
-			this.panelBox._mmDisposed = true;
+			markActorDisposed(this.panelBox);
 			this.panelBox.destroy();
 		}
 		this.panelBox = null;
@@ -146,6 +147,9 @@ class AuxiliaryPanelBox {
 	}
 
 	_createBackgroundCloneEntry(source, index) {
+		if (isDisposedActor(source))
+			return;
+
 		const clone = new Clutter.Clone({
 			source,
 			reactive: false,
@@ -161,11 +165,28 @@ class AuxiliaryPanelBox {
 			source,
 			clone,
 			allocationSignalId: 0,
+			destroySignalId: 0,
+			sourceDestroyed: false,
 		};
 
-		entry.allocationSignalId = source.connect
-			? source.connect('notify::allocation', () => this._syncBackgroundCloneVisibility(entry))
-			: 0;
+		try {
+			entry.allocationSignalId = source.connect
+				? source.connect('notify::allocation', () => this._syncBackgroundCloneVisibility(entry))
+				: 0;
+		} catch (_e) {
+			entry.allocationSignalId = 0;
+		}
+
+		try {
+			entry.destroySignalId = source.connect
+				? source.connect('destroy', () => {
+					entry.sourceDestroyed = true;
+					entry.source = null;
+				})
+				: 0;
+		} catch (_e) {
+			entry.destroySignalId = 0;
+		}
 
 		this.panelBox.insert_child_at_index(clone, index);
 		this._backgroundClones.push(entry);
@@ -176,14 +197,25 @@ class AuxiliaryPanelBox {
 		if (!entry)
 			return;
 
-		disconnectSignal(entry.source, entry.allocationSignalId);
+		disconnectSignal(entry.source, entry.allocationSignalId, entry.sourceDestroyed);
+		disconnectSignal(entry.source, entry.destroySignalId, entry.sourceDestroyed);
+		entry.source = null;
+		entry.allocationSignalId = 0;
+		entry.destroySignalId = 0;
+
 		removeActorFromParent(entry.clone);
-		entry.clone?.destroy?.();
+		if (!isDisposedActor(entry.clone)) {
+			try {
+				entry.clone?.destroy?.();
+			} catch (_e) {
+			}
+		}
+		entry.clone = null;
 	}
 
 	_syncBackgroundClones(mainPanelBox) {
 		const sourceChildren = mainPanelBox.get_children()
-			.filter(child => child && child !== Main.panel);
+			.filter(child => child && child !== Main.panel && !isDisposedActor(child));
 
 		const currentSources = this._backgroundClones.map(entry => entry.source);
 		const unchanged = sourceChildren.length === currentSources.length &&
