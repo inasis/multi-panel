@@ -21,8 +21,8 @@ import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import { getIndicatorDescriptor, isRoutableDescriptor } from './indicatorRouter.js';
-import * as PanelSettings from './settings.js';
+import { getIndicatorDescriptor, isRoutableDescriptor } from './router.js';
+import * as PanelSettings from '../core/settings.js';
 
 const catalogSupportMethods = {
     _updateSessionIndicators() {
@@ -67,8 +67,8 @@ const catalogSupportMethods = {
             PanelSettings.isPersistentRole(indicator) &&
             !excludedIndicators.includes(indicator) &&
             this._isRoutableIndicator(indicator, statusArea[indicator]) &&
-            (this._getIndicatorCatalogPolicy(indicator).includeWhenHidden === true ||
-                this._isIndicatorVisible(statusArea[indicator])));
+            this._isIndicatorPlacedOnMainPanel(indicator, statusArea[indicator]) &&
+            this._isIndicatorVisible(statusArea[indicator]));
 
         this._assignPreferredPositionsToNewIndicators(availableIndicators);
         this._assignPreferredOrderToNewIndicators(availableIndicators);
@@ -151,6 +151,15 @@ const catalogSupportMethods = {
         };
 
         return visibleDescendants(container);
+    },
+
+    _isIndicatorPlacedOnMainPanel(_role, indicator) {
+        const container = this._getIndicatorContainer(indicator);
+        const parent = container?.get_parent?.() ?? null;
+
+        return parent === Main.panel._leftBox ||
+            parent === Main.panel._centerBox ||
+            parent === Main.panel._rightBox;
     },
 
     _isRoutableIndicator(role, source) {

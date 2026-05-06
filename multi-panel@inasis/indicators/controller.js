@@ -20,9 +20,9 @@ import GLib from 'gi://GLib';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import * as PanelSettings from './settings.js';
-import { installStatusIndicatorsCatalogSupport } from './indicatorCatalog.js';
-import { getIndicatorDescriptor, isRoutableDescriptor } from './indicatorRouter.js';
+import * as PanelSettings from '../core/settings.js';
+import { installStatusIndicatorsCatalogSupport } from './catalog.js';
+import { getIndicatorDescriptor, isRoutableDescriptor } from './router.js';
 
 export class StatusIndicatorsController {
     constructor(settings) {
@@ -641,10 +641,7 @@ export class StatusIndicatorsController {
     _extensionStateChanged() {
         this._syncMainPanelIndicators();
         this._queueMainPanelRefresh();
-        this._forEachPanel(panel => {
-            panel?._ensureRightmostPolicyIndicators?.();
-            panel?._reorderBoxesByIndicatorOrder?.();
-        });
+        this._forEachPanel(panel => panel?._reorderBoxesByIndicatorOrder?.());
     }
 
 }

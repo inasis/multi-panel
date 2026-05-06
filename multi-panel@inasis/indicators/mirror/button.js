@@ -26,8 +26,9 @@ import Graphene from 'gi://Graphene';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as Util from 'resource:///org/gnome/shell/misc/util.js';
-import { installMirroredIndicatorSupport } from './indicatorMirrorSupport.js';
-import { getIndicatorDescriptor } from '../services/indicatorRouter.js';
+import { installMirroredIndicatorSupport } from './support.js';
+import { getIndicatorDescriptor } from '../router.js';
+import * as Common from '../../shared/common.js';
 
 const INACTIVE_WORKSPACE_DOT_SCALE = 0.75;
 
@@ -230,8 +231,7 @@ export const MirroredIndicatorButton = GObject.registerClass(
         }
 
         _isDirectSyncRole() {
-            return this._descriptor?.capabilities?.has('direct-action') ||
-                this._descriptor?.capabilities?.has('always-visible');
+            return this._descriptor?.capabilities?.has('direct-action');
         }
 
         _hasCapability(capability) {
@@ -258,6 +258,15 @@ export const MirroredIndicatorButton = GObject.registerClass(
         _usesDirectLabelSync() {
             return this._isDirectSyncRole() ||
                 this._isDescriptorKind('menu-forward', 'activation-forward', 'simple-visual');
+        }
+
+        _shouldKeepProxyWithoutVisibleContent() {
+            return this._isDescriptorKind('menu-forward', 'activation-forward') ||
+                this._hasCapability('menu-toggle') ||
+                this._hasCapability('custom-menu-toggle') ||
+                this._hasCapability('interaction-forward') ||
+                this._hasCapability('click') ||
+                this._isDirectSyncRole();
         }
 
         // Widget sync helpers
@@ -401,15 +410,23 @@ export const MirroredIndicatorButton = GObject.registerClass(
         }
 
         _bindMenuLifecycle(menu, onClose, onOpen = null) {
-            const openStateId = menu.connect('open-state-changed', (_menu, isOpen) => {
-                if (isOpen) {
-                    onOpen?.();
-                    return;
-                }
+            if (typeof menu?.connect !== 'function')
+                return false;
 
-                onClose?.();
-                menu.disconnect(openStateId);
-            });
+            try {
+                const openStateId = menu.connect('open-state-changed', (_menu, isOpen) => {
+                    if (isOpen) {
+                        onOpen?.();
+                        return;
+                    }
+
+                    onClose?.();
+                    menu.disconnect(openStateId);
+                });
+                return true;
+            } catch (_e) {
+                return false;
+            }
         }
 
         // Signal helpers
@@ -544,14 +561,6 @@ export const MirroredIndicatorButton = GObject.registerClass(
             if (this._sourceIndicator) {
                 const sourceChild = this._getSourceVisualActor();
                 if (!this._hasVisibleSourceContent(sourceChild)) {
-                    if (this._isDescriptorKind('activation-forward', 'clone-only') ||
-                        this._isDirectSyncRole()) {
-                        this._createIndicatorClone();
-                        this.visible = false;
-                        this._trackSourceVisibility(sourceChild);
-                        return;
-                    }
-
                     this._isEmpty = true;
                     this.visible = false;
                     return;
@@ -603,7 +612,7 @@ export const MirroredIndicatorButton = GObject.registerClass(
                 return;
 
             const hasVisibleContent = this._hasVisibleSourceContent();
-            this.visible = this._hasCapability('always-visible') ? true : hasVisibleContent;
+            this.visible = hasVisibleContent;
 
             if (!hasVisibleContent)
                 this.remove_style_pseudo_class?.('active');
@@ -706,7 +715,7 @@ export const MirroredIndicatorButton = GObject.registerClass(
                 }
 
             } catch (e) {
-                console.debug('[MultiPanel] Failed to create mirrored indicator:', String(e));
+                Common.debug(`Failed to create mirrored indicator '${this._role ?? 'unknown'}'`, e);
                 this._isEmpty = true;
                 this.visible = false;
             }

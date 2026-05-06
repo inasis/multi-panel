@@ -15,6 +15,8 @@ import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import St from 'gi://St';
 
+import * as Common from '../shared/common.js';
+
 const SCREENSHOT_ON_ALL_MONITORS_ID = 'screenshot-on-all-monitors';
 
 let _originalOpen = null;
@@ -276,7 +278,7 @@ function _createToolbarClonesForAllMonitors() {
     ].filter(e => e != null);
 
     if (interactiveElements.length === 0) {
-        console.debug('[MultiPanel] No screenshot UI elements found to clone');
+        Common.debug('No screenshot UI elements found to clone');
         return;
     }
 
@@ -302,7 +304,7 @@ function _createToolbarClonesForAllMonitors() {
     // Calculate bottom margin from primary monitor to preserve vertical spacing
     const marginBottom = (primaryMonitor.y + primaryMonitor.height) - maxY;
 
-    console.debug('[MultiPanel] Toolbar bounds: x=' + minX + ', y=' + minY + ', w=' + toolbarWidth + ', h=' + toolbarHeight + ', bottomMargin=' + marginBottom);
+    Common.debug('Screenshot toolbar bounds: x=' + minX + ', y=' + minY + ', w=' + toolbarWidth + ', h=' + toolbarHeight + ', bottomMargin=' + marginBottom);
 
     // Create clones for each non-primary monitor
     for (let monitorIdx = 0; monitorIdx < monitors.length; monitorIdx++) {
@@ -415,7 +417,7 @@ function _createToolbarClonesForAllMonitors() {
             const targetX = Math.round(stageX - offsetX);
             const targetY = Math.round(stageY - offsetY);
 
-            console.debug('[MultiPanel] Overlay click at (' + stageX + ',' + stageY + ') -> finding button at (' + targetX + ',' + targetY + ')');
+            Common.debug('Screenshot overlay click at (' + stageX + ',' + stageY + ') -> finding button at (' + targetX + ',' + targetY + ')');
 
             // Find the actor at target position on original toolbar
             const targetActor = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, targetX, targetY);

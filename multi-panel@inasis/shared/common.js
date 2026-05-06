@@ -22,33 +22,19 @@ import * as Config from 'resource:///org/gnome/shell/misc/config.js';
 const [major] = Config.PACKAGE_VERSION.split('.');
 export const shellVersion = Number.parseInt(major);
 
-function hasAddChildMethod(prototype) {
-    return !!(prototype?.add_child || Object.getPrototypeOf(prototype)?.add_child);
-}
+const LOG_PREFIX = '[MultiPanel]';
 
-export function patchAddActorMethod(prototype) {
-    if (prototype.add_actor || !hasAddChildMethod(prototype))
+export function debug(message, error = null) {
+    if (!globalThis.MULTI_PANEL_DEBUG)
         return;
 
-    prototype.add_actor = function (actor) {
-        return this.add_child(actor);
-    };
+    console.debug(`${LOG_PREFIX} ${message}${error ? `: ${String(error)}` : ''}`);
 }
 
-export function copyClass(s, d) {
-    if (!s)
-        return;
+export function warn(message, error = null) {
+    console.warn(`${LOG_PREFIX} ${message}${error ? `: ${String(error)}` : ''}`);
+}
 
-    const propertyNames = Reflect.ownKeys(s.prototype)
-        .filter(pName => typeof pName !== 'symbol')
-        .filter(pName => pName !== 'prototype' && pName !== 'constructor')
-        .filter(pName => !Object.prototype.hasOwnProperty.call(d.prototype, pName));
-
-    propertyNames.forEach(pName => {
-        const pDesc = Reflect.getOwnPropertyDescriptor(s.prototype, pName);
-        if (typeof pDesc === 'object')
-            Reflect.defineProperty(d.prototype, pName, pDesc);
-    });
-
-    patchAddActorMethod(d.prototype);
+export function error(message, error = null) {
+    console.error(`${LOG_PREFIX} ${message}${error ? `: ${String(error)}` : ''}`);
 }

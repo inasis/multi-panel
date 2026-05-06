@@ -262,6 +262,10 @@ const cloneSupportMethods = {
             typeof actor?.activate === 'function' ||
             typeof actor?.clicked === 'function' ||
             typeof actor?.toggle === 'function' ||
+            typeof actor?.openMenu === 'function' ||
+            typeof actor?.toggleMenu === 'function' ||
+            typeof actor?._onClicked === 'function' ||
+            typeof actor?._onButtonPress === 'function' ||
             actor instanceof St.Button ||
             actor.reactive === true);
     },
@@ -289,6 +293,14 @@ const cloneSupportMethods = {
         return [
             this._sourceIndicator,
             this._sourceIndicator?.container,
+            this._sourceIndicator?.actor,
+            this._sourceIndicator?.button,
+            this._sourceIndicator?._button,
+            this._sourceIndicator?._menuButton,
+            this._sourceIndicator?._indicator,
+            this._sourceIndicator?.menu?.sourceActor,
+            this._sourceIndicator?._menu?.sourceActor,
+            this._sourceIndicator?.arcMenu?.sourceActor,
             this._descriptor?.actor,
         ].filter((actor, index, actors) =>
             actor && actors.indexOf(actor) === index);
@@ -496,37 +508,15 @@ const interactionSupportMethods = {
             return Clutter.EVENT_STOP;
 
         if (this._sourceIndicator &&
-            this._sourceIndicator.menu &&
-            this._isDescriptorKind?.('menu-forward'))
-            return this._openMirroredMenu();
+            this._isDescriptorKind?.('menu-forward')) {
+            const result = this._openForwardedMenu();
+            if (result === Clutter.EVENT_STOP)
+                return result;
+        }
 
         if (this._sourceIndicator) {
-            if (this._hasCapability?.('custom-menu-toggle') &&
-                typeof this._sourceIndicator.toggleMenu === 'function')
-                return this._openArcMenu();
-
-            if (this._hasCapability?.('custom-menu-toggle') &&
-                this._sourceIndicator.arcMenu &&
-                typeof this._sourceIndicator.arcMenu.toggle === 'function')
-                return this._openArcMenu();
-
-            if (this._hasCapability?.('custom-menu-toggle') &&
-                this._sourceIndicator._menuButton &&
-                typeof this._sourceIndicator._menuButton.toggleMenu === 'function')
-                return this._openArcMenu();
-
-            const customMenus = [
-                '_popupFavoriteAppsMenu',
-                '_popupPowerItemsMenu',
-                '_popup',
-                '_popupMenu',
-            ];
-
-            for (const menuName of customMenus) {
-                if (this._hasCapability?.('custom-menu-toggle') &&
-                    this._sourceIndicator[menuName]?.toggle)
-                    return this._openCustomPopupMenu(this._sourceIndicator[menuName]);
-            }
+            if (this._hasCapability?.('custom-menu-toggle'))
+                return this._openForwardedMenu();
 
             if (this._isDescriptorKind?.('activation-forward') ||
                 this._hasCapability?.('click') ||
@@ -590,6 +580,7 @@ const interactionSupportMethods = {
     },
 
     _invokeForwardedClick(target) {
+        const currentEvent = Clutter.get_current_event?.() ?? null;
         const attempts = [
             {
                 canRun: () => typeof this._sourceIndicator?.activate === 'function',
@@ -608,16 +599,40 @@ const interactionSupportMethods = {
                 run: () => target.toggle(),
             },
             {
+                canRun: () => typeof target?.openMenu === 'function',
+                run: () => target.openMenu(),
+            },
+            {
+                canRun: () => typeof target?.toggleMenu === 'function',
+                run: () => target.toggleMenu(),
+            },
+            {
+                canRun: () => typeof target?._onClicked === 'function',
+                run: () => target._onClicked(currentEvent),
+            },
+            {
+                canRun: () => typeof target?._onButtonPress === 'function',
+                run: () => target._onButtonPress(target, currentEvent),
+            },
+            {
+                canRun: () => typeof this._sourceIndicator?.openMenu === 'function',
+                run: () => this._sourceIndicator.openMenu(),
+            },
+            {
+                canRun: () => typeof this._sourceIndicator?.toggleMenu === 'function',
+                run: () => this._sourceIndicator.toggleMenu(),
+            },
+            {
                 canRun: () => typeof target?.emit === 'function',
                 run: () => target.emit('clicked'),
             },
             {
                 canRun: () => typeof target?.emit === 'function',
-                run: () => target.emit('button-press-event', null),
+                run: () => target.emit('button-press-event', currentEvent),
             },
             {
                 canRun: () => typeof target?.emit === 'function',
-                run: () => target.emit('button-release-event', null),
+                run: () => target.emit('button-release-event', currentEvent),
             },
         ];
 
@@ -633,6 +648,99 @@ const interactionSupportMethods = {
         }
 
         return false;
+    },
+
+    _openForwardedMenu() {
+        const menu = this._resolveForwardedMenu();
+        if (menu)
+            return this._openMenuObject(menu);
+
+        if (this._hasCapability?.('custom-menu-toggle')) {
+            const arcToggle = this._resolveArcMenuToggle();
+            if (arcToggle.toggleFunc)
+                return this._openArcMenu();
+
+            const popupMenu = this._resolveCustomPopupMenu();
+            if (popupMenu)
+                return this._openCustomPopupMenu(popupMenu);
+        }
+
+        return this._forwardClickToSource();
+    },
+
+    _resolveForwardedMenu() {
+        if (!this._sourceIndicator)
+            return null;
+
+        return this._sourceIndicator.menu ??
+            this._sourceIndicator._menu ??
+            this._sourceIndicator._indicator?.menu ??
+            this._sourceIndicator.arcMenu ??
+            this._sourceIndicator._menuButton?.arcMenu ??
+            this._resolveCustomPopupMenu();
+    },
+
+    _resolveCustomPopupMenu() {
+        const customMenus = [
+            '_popupFavoriteAppsMenu',
+            '_popupPowerItemsMenu',
+            '_popup',
+            '_popupMenu',
+        ];
+
+        return customMenus
+            .map(menuName => this._sourceIndicator?.[menuName])
+            .find(menu => menu && (
+                typeof menu.toggle === 'function' ||
+                typeof menu.open === 'function'
+            )) ?? null;
+    },
+
+    _openMenuObject(menu) {
+        if (!menu)
+            return Clutter.EVENT_PROPAGATE;
+
+        if (typeof menu.open === 'function' || typeof menu.close === 'function')
+            return this._openMirroredMenu(menu);
+
+        if (typeof menu.toggle === 'function')
+            return this._toggleMenuObject(menu);
+
+        return this._forwardClickToSource();
+    },
+
+    _toggleMenuObject(menu) {
+        const originalSourceActor = menu.sourceActor;
+        const hadSourceActor = Object.prototype.hasOwnProperty.call(menu, 'sourceActor');
+
+        this._setButtonActive(true);
+        if (hadSourceActor)
+            this._setMenuSourceActor(menu, this);
+
+        const lifecycleBound = this._bindMenuLifecycle(menu, () => {
+            this._setButtonActive(false);
+            if (hadSourceActor)
+                this._setMenuSourceActor(menu, originalSourceActor);
+        });
+
+        if (!lifecycleBound) {
+            this._replaceTimeout('_menuToggleTimeoutId', 300, () => {
+                this._setButtonActive(false);
+                if (hadSourceActor)
+                    this._setMenuSourceActor(menu, originalSourceActor);
+                return GLib.SOURCE_REMOVE;
+            });
+        }
+
+        try {
+            menu.toggle();
+            return Clutter.EVENT_STOP;
+        } catch (_e) {
+            this._setButtonActive(false);
+            if (hadSourceActor)
+                this._setMenuSourceActor(menu, originalSourceActor);
+            return Clutter.EVENT_PROPAGATE;
+        }
     },
 
     _resolveArcMenuToggle() {
@@ -726,9 +834,10 @@ const interactionSupportMethods = {
         return Clutter.EVENT_STOP;
     },
 
-    _openMirroredMenu() {
+    _openMirroredMenu(menu = this._sourceIndicator.menu) {
         const monitorIndex = Main.layoutManager.findIndexForActor(this);
-        const menu = this._sourceIndicator.menu;
+        if (!menu)
+            return Clutter.EVENT_PROPAGATE;
 
         const originalSourceActor = menu.sourceActor;
         const menuPositionActor = this._getMenuPositionActor(menu);
@@ -737,8 +846,11 @@ const interactionSupportMethods = {
 
         let menuBoxState = null;
 
-        if (menu.isOpen) {
-            menu.close();
+        if (this._isMenuOpen(menu)) {
+            if (typeof menu.close === 'function')
+                menu.close();
+            else if (typeof menu.toggle === 'function')
+                menu.toggle();
             return Clutter.EVENT_STOP;
         }
 
@@ -748,7 +860,7 @@ const interactionSupportMethods = {
         if (menuPositionActor)
             menuBoxState = this._updateMenuPositioning(menu, monitorIndex);
 
-        this._bindMenuLifecycle(
+        const lifecycleBound = this._bindMenuLifecycle(
             menu,
             () => this._restoreMenuState(
                 menu,
@@ -760,9 +872,34 @@ const interactionSupportMethods = {
             () => this._setButtonActive(true)
         );
 
-        menu.open();
+        if (typeof menu.open === 'function')
+            menu.open();
+        else if (typeof menu.toggle === 'function')
+            menu.toggle();
+        else
+            return Clutter.EVENT_PROPAGATE;
+
+        if (!lifecycleBound) {
+            this._replaceTimeout('_menuToggleTimeoutId', 300, () => {
+                this._restoreMenuState(
+                    menu,
+                    originalSourceActor,
+                    originalBoxPointer,
+                    sourceState,
+                    menuBoxState
+                );
+                return GLib.SOURCE_REMOVE;
+            });
+        }
 
         return Clutter.EVENT_STOP;
+    },
+
+    _isMenuOpen(menu) {
+        if (typeof menu?.isOpen === 'function')
+            return menu.isOpen();
+
+        return menu?.isOpen === true;
     },
 
     _getMenuPositionActor(menu) {
@@ -870,6 +1007,7 @@ const interactionSupportMethods = {
             '_iconSyncId',
             '_labelSyncId',
             '_arcMenuTimeoutId',
+            '_menuToggleTimeoutId',
             '_lockSizeTimeoutId',
             '_proxyActivationBlockTimeoutId',
             '_sizeDebounceId',

@@ -23,6 +23,8 @@ import { pgettext as C_ } from 'resource:///org/gnome/shell/extensions/extension
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import { QuickSettingsMenu, SystemIndicator } from 'resource:///org/gnome/shell/ui/quickSettings.js';
 
+import * as Common from '../../shared/common.js';
+
 const N_QUICK_SETTINGS_COLUMNS = 2;
 
 async function importStatusModule(name, optional = false) {
@@ -32,7 +34,7 @@ async function importStatusModule(name, optional = false) {
         if (!optional)
             throw e;
 
-        console.debug(`[MultiPanel] Optional quick settings module unavailable: ${name}`);
+        Common.debug(`Optional quick settings module unavailable: ${name}`);
         return null;
     }
 }
@@ -66,7 +68,7 @@ export const AuxiliaryQuickSettings = GObject.registerClass(
             this.setMenu(new QuickSettingsMenu(this, N_QUICK_SETTINGS_COLUMNS));
 
             this._setupIndicators().catch(error => {
-                console.error('[MultiPanel] Failed to setup quick settings:', error);
+                Common.error('Failed to setup quick settings', error);
             });
         }
 

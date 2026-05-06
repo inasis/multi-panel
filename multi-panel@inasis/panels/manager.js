@@ -22,14 +22,14 @@ import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as Layout from 'resource:///org/gnome/shell/ui/layout.js';
 
-import * as PanelSettings from './settings.js';
-import { AuxiliaryPanel } from '../ui/panel.js';
-import { StatusIndicatorsController } from './indicatorController.js';
+import * as PanelSettings from '../core/settings.js';
+import { AuxiliaryPanel } from './panel.js';
+import { StatusIndicatorsController } from '../indicators/controller.js';
 import {
 	isDisposedActor,
 	removeActorFromParent,
 	trackActorDispose,
-} from '../ui/actorUtils.js';
+} from '../core/actor.js';
 
 export const SHOW_PANEL_ID = 'show-panel';
 export const ENABLE_HOT_CORNERS = 'enable-hot-corners';
@@ -211,7 +211,6 @@ export class AuxiliaryPanelLayoutManager {
 		this._monitorIds = [];
 		this._panelBoxes = [];
 
-		this._showAppMenuId = null;
 		this._monitorsChangedId = null;
 		this._panelHeightChangedId = null;
 
@@ -281,9 +280,6 @@ export class AuxiliaryPanelLayoutManager {
 				this._monitorsChangedId = Main.layoutManager.connect('monitors-changed', this._monitorsChanged.bind(this));
 				this._monitorsChanged();
 			}
-			if (!this._showAppMenuId) {
-				this._showAppMenuId = this._settings.connect(`changed::${PanelSettings.SHOW_APP_MENU_ID}`, this._showAppMenu.bind(this));
-			}
 			if (!this._panelHeightChangedId) {
 				this._panelHeightChangedId = this._settings.connect(
 					`changed::${PanelSettings.PANEL_HEIGHT_ID}`,
@@ -323,15 +319,10 @@ export class AuxiliaryPanelLayoutManager {
 			this.statusIndicatorsController = null;
 		}
 
-		if (this._showAppMenuId) {
-			this._settings.disconnect(this._showAppMenuId);
-			this._showAppMenuId = null;
-		}
 		if (this._panelHeightChangedId) {
 			this._settings.disconnect(this._panelHeightChangedId);
 			this._panelHeightChangedId = null;
 		}
-		this._hideAppMenu();
 
 		if (this._monitorsChangedId) {
 			Main.layoutManager.disconnect(this._monitorsChangedId);
@@ -363,7 +354,6 @@ export class AuxiliaryPanelLayoutManager {
 			panelIndex++;
 		});
 
-		this._showAppMenu();
 		if (transferIndicators && this.statusIndicatorsController) {
 			this.statusIndicatorsController.transferIndicators();
 		}
@@ -394,14 +384,6 @@ export class AuxiliaryPanelLayoutManager {
 		if (panelBox) {
 			panelBox.destroy();
 		}
-	}
-
-	_showAppMenu() {
-		// No-op for GNOME 45+
-	}
-
-	_hideAppMenu() {
-		// No-op for GNOME 45+
 	}
 
 	_syncExternalPanelHeights() {

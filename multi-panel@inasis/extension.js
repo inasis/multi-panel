@@ -20,16 +20,9 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as PanelModule from 'resource:///org/gnome/shell/ui/panel.js';
 
-// Shell version for feature detection - centralized here and exported for other modules
-
-import * as Common from './shared/common.js';
-import * as AuxiliaryPanelManager from './services/panels.js';
-import * as PanelSettings from './services/settings.js';
-import * as ScreenshotHandler from './services/screenshot.js';
-
-export const shellVersion = Common.shellVersion;
-export const patchAddActorMethod = Common.patchAddActorMethod;
-export const copyClass = Common.copyClass;
+import * as AuxiliaryPanelManager from './panels/manager.js';
+import * as PanelSettings from './core/settings.js';
+import * as ScreenshotHandler from './screenshot/screenshot.js';
 
 export let auxiliaryPanels = [];
 export let auxiliaryLayoutManager = null;

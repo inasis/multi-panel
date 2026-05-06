@@ -28,19 +28,24 @@ import * as CtrlAltTab from 'resource:///org/gnome/shell/ui/ctrlAltTab.js';
 import * as Layout from 'resource:///org/gnome/shell/ui/layout.js';
 import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
 
-import {
-    AUXILIARY_PANEL_ITEM_IMPLEMENTATIONS,
-    hasNativeAppMenuButton,
-} from './mandatory/dedicatedIndicators.js';
-import { installAuxiliaryPanelSupport } from './panelSupport.js';
+import { MultiPanelAppMenuButton, hasNativeAppMenuButton } from '../indicators/mandatory/appMenu.js';
+import { AuxiliaryDateMenuButton } from '../indicators/mandatory/dateMenu.js';
+import { AuxiliaryQuickSettings } from '../indicators/mandatory/quickSettings.js';
+import { installAuxiliaryPanelSupport } from './support.js';
 import {
     getActorChildren,
     isDisposedActor,
     isUsablePanel,
     syncWidgetAppearance,
     trackActorDispose,
-} from './actorUtils.js';
-import * as PanelSettings from '../services/settings.js';
+} from '../core/actor.js';
+import * as PanelSettings from '../core/settings.js';
+
+const AUXILIARY_PANEL_ITEM_IMPLEMENTATIONS = {
+    appMenu: MultiPanelAppMenuButton,
+    dateMenu: AuxiliaryDateMenuButton,
+    quickSettings: AuxiliaryQuickSettings,
+};
 
 export const SHOW_ACTIVITIES_ID = PanelSettings.SHOW_ACTIVITIES_ID;
 export const SHOW_APP_MENU_ID = PanelSettings.SHOW_APP_MENU_ID;

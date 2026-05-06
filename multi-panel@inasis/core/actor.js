@@ -16,7 +16,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, visit https://www.gnu.org/licenses/.
 */
 
-import * as PanelSettings from '../services/settings.js';
+import * as PanelSettings from './settings.js';
 
 export function isDisposedActor(actor) {
     if (!actor)

@@ -21,8 +21,6 @@ import GObject from 'gi://GObject';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as DateMenu from 'resource:///org/gnome/shell/ui/dateMenu.js';
 
-import * as Common from '../../shared/common.js';
-
 const NativeAuxiliaryDateMenuButton = class NativeAuxiliaryDateMenuButton extends DateMenu.DateMenuButton {
     _init() {
         super._init();
@@ -44,4 +42,3 @@ const NativeAuxiliaryDateMenuButton = class NativeAuxiliaryDateMenuButton extend
 };
 
 export const AuxiliaryDateMenuButton = GObject.registerClass(NativeAuxiliaryDateMenuButton);
-Common.patchAddActorMethod(AuxiliaryDateMenuButton.prototype);

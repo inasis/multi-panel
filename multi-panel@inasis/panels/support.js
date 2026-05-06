@@ -22,13 +22,13 @@ import GLib from 'gi://GLib';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import { MirroredIndicatorButton } from './indicatorMirror.js';
+import { MirroredIndicatorButton } from '../indicators/mirror/button.js';
 import {
     getIndicatorDescriptor,
     isMirroredDescriptor,
     isRoutableDescriptor,
-} from '../services/indicatorRouter.js';
-import * as PanelSettings from '../services/settings.js';
+} from '../indicators/router.js';
+import * as PanelSettings from '../core/settings.js';
 import {
     getActorChildren,
     getIndicatorContainer,
@@ -36,7 +36,8 @@ import {
     isUsablePanel,
     removeActorFromParent,
     syncWidgetAppearance,
-} from './actorUtils.js';
+} from '../core/actor.js';
+import * as Common from '../shared/common.js';
 
 const appearanceSupportMethods = {
     _startExtensionWatcher() {
@@ -148,7 +149,7 @@ const appearanceSupportMethods = {
             const appliedActors = panelBlur.actors_list?.find(entry => entry?.widgets?.panel === this);
             this._blurMyShellApplied = !!appliedActors;
         } catch (e) {
-            console.debug('[MultiPanel] Blur my Shell compatibility failed:', String(e));
+            Common.debug('Blur my Shell compatibility failed', e);
         }
     },
 
@@ -270,7 +271,7 @@ const indicatorSupportMethods = {
                 this.statusArea[role] = indicator;
                 return indicator;
             } catch (e) {
-                console.error('[MultiPanel] Failed to create routed indicator for', role, ':', String(e));
+                Common.error(`Failed to create routed indicator '${role}'`, e);
                 return null;
             }
         }
@@ -290,24 +291,6 @@ const indicatorSupportMethods = {
             this.monitorIndex === Main.layoutManager.primaryIndex;
     },
 
-    _shouldIncludeHiddenSource(descriptor) {
-        return descriptor.catalog?.includeWhenHidden === true ||
-            descriptor.capabilities?.has('always-visible') === true;
-    },
-
-    _shouldEnsureAuxiliaryRole(descriptor) {
-        if (descriptor.layout?.ensureOnAuxiliary !== true)
-            return false;
-
-        const settingKey = descriptor.layout?.showWhenSetting;
-        return !settingKey || this._settings.get_boolean(settingKey);
-    },
-
-    _getRightmostAuxiliaryRoles() {
-        return Object.keys(Main.panel.statusArea ?? {})
-            .filter(role => this._describeIndicatorRole(role).layout?.forceAuxiliaryRightmost === true);
-    },
-
     _createDedicatedIndicator(role, descriptor) {
         const implementation = descriptor.implementation ?? role;
         const constructor = this._panelItemImplementations[implementation];
@@ -319,7 +302,7 @@ const indicatorSupportMethods = {
             indicator = new constructor(this);
             indicator._descriptor = descriptor;
         } catch (e) {
-            console.error('[MultiPanel] Error creating indicator for', role, ':', String(e));
+            Common.error(`Error creating indicator '${role}'`, e);
             throw e;
         }
 
@@ -382,7 +365,6 @@ const indicatorSupportMethods = {
         this._syncPanelAppearance();
         this._hideIndicators();
         this._cloneAllMainPanelIndicators();
-        this._ensureRightmostPolicyIndicators();
         this._reorderBoxesByIndicatorOrder();
     },
 
@@ -442,54 +424,6 @@ const indicatorSupportMethods = {
                 .filter(Boolean)
                 .forEach(role => pushRole(role, fallbackPosition));
         });
-
-        const knownRoles = new Set([
-            ...groupedIndicators[PanelSettings.PANEL_BOX_LEFT],
-            ...groupedIndicators[PanelSettings.PANEL_BOX_CENTER],
-            ...groupedIndicators[PanelSettings.PANEL_BOX_RIGHT],
-        ]);
-
-        for (const [role, indicator] of Object.entries(mainPanel.statusArea)) {
-            if (!indicator || knownRoles.has(role))
-                continue;
-            if (!canMirrorRole(role))
-                continue;
-
-            const container = getIndicatorContainer(indicator);
-            const descriptor = this._describeIndicatorRole(role);
-            if (!this._shouldIncludeHiddenSource(descriptor) && !container?.visible)
-                continue;
-
-            pushRole(role, PanelSettings.getIndicatorPosition(this._settings, role));
-        }
-
-        const ensureRole = (role, fallbackPosition = PanelSettings.PANEL_BOX_LEFT) => {
-            if (knownRoles.has(role) || !canMirrorRole(role))
-                return;
-
-            const descriptor = this._describeIndicatorRole(role);
-            if (this._shouldEnsureAuxiliaryRole(descriptor)) {
-                if (!this._shouldHideRoleOnThisMonitor(descriptor)) {
-                    pushRole(role, fallbackPosition);
-                    knownRoles.add(role);
-                }
-                return;
-            }
-
-            if (mainPanel.statusArea[role]) {
-                pushRole(role, fallbackPosition);
-                knownRoles.add(role);
-            }
-        };
-
-        for (const role of Object.keys(mainPanel.statusArea ?? {})) {
-            const descriptor = this._describeIndicatorRole(role);
-            if (!this._shouldEnsureAuxiliaryRole(descriptor) &&
-                !this._shouldIncludeHiddenSource(descriptor))
-                continue;
-
-            ensureRole(role, PanelSettings.getIndicatorPosition(this._settings, role));
-        }
 
         const orderedLeftIndicators = PanelSettings.sortIndicatorsByOrder(
             this._settings,
@@ -553,12 +487,6 @@ const indicatorSupportMethods = {
                 const indicator = this._ensureIndicator(role);
                 if (indicator) {
                     if (indicator._isEmpty) {
-                        if (this._shouldIncludeHiddenSource(descriptor)) {
-                            this._addToPanelBox(role, indicator, index + nChildren, box);
-                            indicator.hide?.();
-                            continue;
-                        }
-
                         if (this.statusArea[role] === indicator)
                             delete this.statusArea[role];
                         indicator.destroy();
@@ -568,7 +496,7 @@ const indicatorSupportMethods = {
                     this._addToPanelBox(role, indicator, index + nChildren, box);
                 }
             } catch (e) {
-                console.error('[MultiPanel] _updateBox: ERROR for role', role, ':', e, e.stack);
+                Common.error(`Failed to update indicator '${role}'`, e?.stack ?? e);
             }
         }
     },
@@ -835,57 +763,6 @@ const indicatorSupportMethods = {
         }
     },
 
-    _ensureRightmostPolicyIndicators() {
-        if (!isUsablePanel(this) || isDisposedActor(this._rightBox))
-            return;
-
-        const roles = this._getRightmostAuxiliaryRoles();
-        for (const role of roles)
-            this._ensureRightmostIndicator(role);
-    },
-
-    _ensureRightmostIndicator(role) {
-        const mainIndicator = Main.panel.statusArea[role];
-
-        if (!mainIndicator) {
-            if (this.statusArea[role]) {
-                const ind = this.statusArea[role];
-                const cont = getIndicatorContainer(ind);
-                try {
-                    if (!isDisposedActor(cont))
-                        removeActorFromParent(cont);
-                } catch (_e) {
-                }
-                try {
-                    ind.destroy();
-                } catch (_e) {
-                }
-                delete this.statusArea[role];
-            }
-            return;
-        }
-
-        const indicator = this._ensureIndicator(role);
-        if (!indicator)
-            return;
-
-        const container = getIndicatorContainer(indicator);
-        if (isDisposedActor(container))
-            return;
-
-        container._mmIndicatorRole = role;
-
-        try {
-            removeActorFromParent(container);
-
-            if (!isDisposedActor(this._rightBox))
-                this._rightBox.add_child(container);
-
-            this._applyIndicatorPadding(role, container);
-            this._reorderBoxByIndicatorOrder(this._rightBox);
-        } catch (_e) {
-        }
-    },
 };
 
 export function installAuxiliaryPanelSupport(prototype) {
