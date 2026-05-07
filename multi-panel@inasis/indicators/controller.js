@@ -468,8 +468,6 @@ export class StatusIndicatorsController {
             return aRank - bRank;
         });
 
-        this._pinMainPanelRightmostIndicator(box, entries);
-
         for (const {child} of entries) {
             const role = this._getMainPanelRoleForChild(child);
             if (role && this._getStatusRoleDescriptor(role).layout?.pinMainPanelOrder === true)
@@ -478,26 +476,6 @@ export class StatusIndicatorsController {
             box.remove_child(child);
             box.add_child(child);
         }
-    }
-
-    _pinMainPanelRightmostIndicator(box, entries) {
-        if (box !== Main.panel._rightBox || entries.length === 0)
-            return;
-
-        const orderedPersistentEntries = entries.filter(entry =>
-            entry.role && PanelSettings.isPersistentRole(entry.role));
-        if (orderedPersistentEntries.length === 0)
-            return;
-
-        const terminalEntry = orderedPersistentEntries.find(entry =>
-            this._getStatusRoleDescriptor(entry.role).layout?.forceMainPanelRightmost === true) ??
-            orderedPersistentEntries[orderedPersistentEntries.length - 1];
-        const terminalIndex = entries.indexOf(terminalEntry);
-        if (terminalIndex < 0 || terminalIndex === entries.length - 1)
-            return;
-
-        entries.splice(terminalIndex, 1);
-        entries.push(terminalEntry);
     }
 
     _reorderMainPanelIndicators() {

@@ -317,11 +317,10 @@ class MultiPanelPrefsWidget extends Adw.PreferencesGroup {
                 if (this._getIndicatorPosition(role) === box)
                     next.push(role);
             }
-        }
-
-        for (const role of effectiveAllowed) {
-            if (!next.includes(role))
-                next.push(role);
+            for (const role of effectiveAllowed) {
+                if (!deduped.includes(role) && this._getIndicatorPosition(role) === box)
+                    next.push(role);
+            }
         }
 
         return next;

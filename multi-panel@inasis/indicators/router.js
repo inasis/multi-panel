@@ -219,9 +219,7 @@ const INDICATOR_RULES = [
                 hideOnPrimaryMonitor: true,
                 mainPanelHiddenMode: 'preserve-visible',
                 mainPanelPaddingTarget: 'container',
-                pinMainPanelOrder: true,
                 restoreMainPanelPaddingBeforeApply: true,
-                skipMainPanelMove: true,
             },
             reason: null,
         }),
@@ -262,8 +260,6 @@ const INDICATOR_RULES = [
             },
             layout: {
                 auxiliaryPaddingMode: 'outer-and-target',
-                forceAuxiliaryRightmost: true,
-                forceMainPanelRightmost: true,
                 mainPanelPaddingTarget: 'named-container',
                 mainPanelPaddingClassNames: [
                     'panel-status-indicators-box',
