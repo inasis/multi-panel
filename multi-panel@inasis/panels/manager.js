@@ -95,10 +95,6 @@ class AuxiliaryPanelBox {
 
 	_syncPanelBoxAppearance(mainPanelBox) {
 		try {
-			this.panelBox.visible = mainPanelBox.visible;
-			this.panelBox.opacity = mainPanelBox.opacity;
-			this.panelBox.reactive = mainPanelBox.reactive;
-
 			const styleClass = mainPanelBox.get_style_class_name?.() ?? '';
 			if (this.panelBox.get_style_class_name?.() !== styleClass)
 				this.panelBox.set_style_class_name(styleClass);
