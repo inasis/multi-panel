@@ -26,6 +26,8 @@ Then reload GNOME Shell and enable:
 ```bash
 gnome-extensions enable multi-panel@inasis
 ```
+## Did you find a bug?
+**_Don't be shy,_** Please feel free to write down your inconvenience here as an issue. I will come and fix it.
 
 ## What It Does
 
